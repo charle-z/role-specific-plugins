@@ -1,7 +1,13 @@
 ---
 name: build-dashboard
-description: "Build source-backed analytical dashboards that help teams monitor performance, explore drivers, and act on product or business metrics. Use when the user needs a dashboard, scorecard, monitoring view, BI dashboard, MCP artifact dashboard, or Streamlit dashboard with clear metrics, filters, validation, and handoff."
+description: "Build source-backed dashboards for monitoring performance, exploring drivers, or acting on product and business metrics. Use when the task needs a dashboard, scorecard, or monitoring view with clear metrics, filters, source definitions, and QA."
 ---
+
+## Related Skills
+
+Use $create-data-context only when the dashboard work explicitly asks to save data context or create, update, inspect, or repair a semantic layer.
+
+Use $analyze-data-quality when dashboard metrics disagree or source freshness, grain, joins, or definitions could affect trust.
 
 # Dashboard Building
 
@@ -13,19 +19,16 @@ This skill owns the dashboard brief, delivery-mode selection, metric definitions
 
 ## Skill Configuration
 
-### User Context
+### Runtime Delivery Routing
 
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
+If `surface = chatgpt_web` and `mode = work_mode` are both positively identified, do not select the Data Analytics MCP artifact app and do not load its dashboard specification. If `mode = work_mode` is positive and `surface` is unknown or otherwise not positively `codex_desktop`, apply the same non-MCP delivery rule for safety. Use a connected BI destination when the user selected one or it clearly owns the requested dashboard; otherwise build portable HTML. Use Streamlit only when the user explicitly asks for it. MCP servers and other callable tools remain valid data sources.
 
 ### Source Discovery And Verification
 
-Use the relevant semantic layer first when one exists. Treat it as the starting map for candidate metrics, tables, joins, filters, caveats, source precedence, and known conflicts.
+Use the relevant semantic layer as a starting map, not a boundary.
 
-Do not stop at the semantic layer or the first plausible source. Search across the relevant available company source lanes, including structured data or data warehouses, dashboards, company docs, team communication, notebooks, code repositories, and other connected company knowledge or data that could change the answer.
-
-For source-backed analytical work, always verify through live source reads. When the answer depends on data, run fresh data queries against the available structured-data sources before drawing conclusions, even when the semantic layer already names likely tables or definitions.
-
-Use the combined evidence to determine which source controls the answer, note meaningful disagreements, and state why the selected source is authoritative.
+1. **Explore all possible sources.** Search every connected or provided source that could contain task-relevant data or change the interpretation. Within each structured-data source, run fresh catalog or metadata discovery for relevant schemas, datasets, tables, views, models, and metrics. Known sources, tables, dashboards, and semantic mappings are starting points, not stopping points.
+2. **Compare duplicates and conflicts.** When sources overlap or disagree, compare ownership, freshness, definition, grain, coverage, and directness. Use the best authoritative source, or combine complementary sources when needed. Note material conflicts, explain why the selected source or sources control the answer, and verify selected data through live reads before concluding.
 
 ### Source Access Guardrail
 
@@ -49,7 +52,14 @@ Use $gather-business-context when dashboard purpose, metric definitions, operati
 
 Pick the first delivery surface that fits the user's need and available access. If the user specifies the destination or surface, use that instead of the default order.
 
-1. Use a connected BI tool by default. Use the BI surface identified during onboarding or user context; if none is specified, look for an available connected BI solution before choosing another surface.
+For positively identified web Work Mode, or any positive Work Mode signal without a positive Codex desktop surface, use this order:
+
+1. Use a connected BI tool when the user selected it or it clearly owns the destination.
+2. Otherwise use HTML for the dashboard handoff.
+
+Do not choose the MCP artifact app in Work Mode without a positive Codex desktop surface, even if its tools are visible. For all other environments, use the default order below:
+
+1. Use a connected BI tool by default. Use the BI surface identified from the current request, current-run context, or explicit user preference; if none is specified, look for an available connected BI solution before choosing another surface.
 2. Use the MCP artifact app when a connected BI build is unavailable, too heavy for the request, or the user needs a compact in-Codex analytical dashboard.
 3. Use HTML when BI and MCP are not suitable and the user needs a portable static dashboard.
 
@@ -96,6 +106,8 @@ Build enough metric breadth to cover every family that is relevant to the dashbo
 
 Map the selected families into dashboard roles before building: hero metrics for the default view, diagnostic metrics for movement and breakdowns, guardrails for interpretation, and detail metrics for lookup or follow-up.
 
+Let the decision determine the number of hero metric cards. Do not pad or truncate the set to four—or any preferred count. Give each card one distinct, decision-relevant headline metric. Use chips only for short comparison context tied directly to that headline, such as its prior-period value, target, or delta; move independent secondary measures into their own cards, charts, tables, narrative, or detail views. Keep coherent cards in the same strip; odd counts are valid because the artifact renderer balances rows responsively.
+
 **Escalate when metric design is the hard part.**
 
 Invoke $design-kpis when this baseline metric-family pass is not enough, such as when the dashboard needs a deeper metric framework, target-setting, formal KPI tradeoff analysis, or clearer definitions than this workflow can safely infer. Pass the dashboard brief, business context, source context, existing metric definitions, and constraints so the recommended metrics fit the audience and use case.
@@ -130,7 +142,7 @@ Record the source or query path when it would be hard to rediscover later.
 
 ### 8. Hand Off The Dashboard
 
-Include the dashboard link or local artifact path, what validation was performed, source or access caveats, and any remaining sharing or operational steps. For MCP artifact dashboards, follow the validation and render handoff rules in `specifications/mcp-artifact-dashboard.md`.
+Include the dashboard link or local artifact path, source or access caveats, and any remaining sharing or operational steps. Keep routine check details in support artifacts. Do not list internal checks in the user-facing handoff unless a check failed, was unavailable, or produced a user-relevant caveat. For MCP artifact dashboards, follow the validation and render handoff rules in `specifications/mcp-artifact-dashboard.md`.
 
 ## Dashboard Quality Bar
 

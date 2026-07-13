@@ -4,9 +4,9 @@ Apply these rules before returning `Work Now`.
 
 ## Hard suppressors
 
-Suppress the account when there is strong evidence of:
+Suppress the account when there is strong evidence that the proposed rep action would duplicate or conflict with motion already in progress, such as:
 
-- an active open opportunity
+- an active open opportunity with already-owned seller, SE, or internal-team motion that makes the proposed action duplicative
 - a recent or upcoming external meeting already in motion
 - clearly active seller, SE, or internal team motion that would make new outreach duplicative
 

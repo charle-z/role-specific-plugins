@@ -11,6 +11,7 @@ Use this when the dashboard should be delivered as a portable static HTML file r
 ## Build Shape
 
 - Build a single portable HTML file when practical, with compact embedded data and no external runtime dependency unless the user asked for one.
+- For every portable HTML dashboard, read `../../visualize-data/references/recharts-html.md`, start from `../../../assets/html-report-shell.html`, and use its packaged Recharts runtime plus same-data static fallbacks. Keep cards, tables, filters, source notes, and fallback content as semantic HTML that remains readable without scripts.
 - Lead with the dashboard's primary metric context, then trends, diagnostic breakdowns, and detail tables.
 - Keep filters and interactions limited to controls that materially help the reader explore the dashboard.
 - Preserve source provenance in a visible sources or methodology section, including query links, source tables, freshness, definitions, and important filters.
@@ -20,5 +21,6 @@ Use this when the dashboard should be delivered as a portable static HTML file r
 ## Validation
 
 - Validate that the HTML opens locally, renders charts and tables, and has no obvious JavaScript errors.
+- Check both HTML states: live Recharts mounts replace their fallbacks when scripts run, and the same-data fallbacks remain readable when scripts do not run.
 - Inspect the rendered page at desktop and narrow widths for clipping, overlap, unreadable labels, and broken controls.
 - Confirm that cards, charts, and tables reconcile against the reviewed source extracts before handoff.

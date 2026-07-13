@@ -1,122 +1,200 @@
 ---
 name: salesforce
-description: Agentforce Sales connector guide for Sales workflows that use Salesforce for CRM reads, drafts, notes, account plans, Agentforce assignments, or proposed record changes.
+description: Use when a focused Sales workflow needs Salesforce-backed CRM reads, links, drafts, notes, account plans, Agentforce assignments, or explicitly requested Salesforce connector/query guidance. Do not use for generic CRM app construction or when another CRM is authoritative.
 ---
 
 # Salesforce User Guide
 
-Use this as the Salesforce-specific user guide whenever the user or workflow is using Salesforce as the CRM connector, including drafting Salesforce-backed updates, summaries, notes, account plans, Agentforce assignments, or proposed record changes. Keep the surrounding workflow skill authoritative for the sales task itself; this guide adds Agentforce Sales-specific metadata discovery, SOQL query selection, record reads, links, and write safety.
+Prepare a sales person with trustworthy Salesforce context or a safely reviewed Salesforce action, while keeping the surrounding Sales workflow authoritative for the business task.
 
-Do not use this guide when the workflow uses another CRM connector or no CRM connector.
+## Common Skill Instructions
 
-## Skill Configuration
+MANDATORY: If not already in context, read and adhere closely to plugins/sales/skills/index/SKILL.md## Cross-Skill Best Practices.
 
-### User Context
+## Salesforce Operation Ranking
 
-Mandatory pre-answer gate: Invoke `sales:user-context` in preflight mode by loading `[$sales:user-context](../user-context/SKILL.md)` and running its preflight script before answering, searching connectors, retrieving evidence, or drafting output. Do not look for a callable MCP tool named `sales:user-context`. Use the returned `sales_preflight` envelope as authoritative for saved context, source-category mapping, final obligations, and conditional guidance. Do not read or reinterpret raw Sales state files unless preflight fails, local shell access is unavailable, or the user explicitly asks for raw state inspection.
+Use this priority order when the requested Salesforce job or record is ambiguous.
 
-Use returned user context as lookup hints and drafting guidance. Always verify Salesforce object and field metadata before querying or writing; saved user context does not replace `describe_global`, `describe_sobject`, record type checks, or write-safety confirmation.
+1. Explicit user request, named record, Salesforce id, account, opportunity, contact, lead, or stated action
+2. Read-only context that helps the active Sales workflow make a decision
+3. Exact record or high-confidence candidate resolved from the user's words and business context
+4. The smallest field set, activity history, account plan, event, or transcript context that answers the request
+5. A reviewed draft of proposed Salesforce changes
+6. An explicitly approved, supported Salesforce write followed by verification
 
-### Audience And Language
+Do not silently pick among plausible records, broaden a read into a write, or treat clarification answers as write approval.
 
-Write for Sales users, not plugin maintainers. This applies to final answers, setup/status readbacks, failure explanations, tool preambles, and mid-turn progress narration.
+## Key Dependency Categories
 
-Translate implementation work into practical Sales impact: what Sales is checking, setting up, saving, or preparing, and why it matters. Avoid implementation terms such as preflight, state file, cache, raw connector id, heartbeat, targetThreadId, schema, API, runtime, metadata, and provider taxonomy unless the user asks for debugging details.
+These are particularly important for this workflow; use your best judgment to potentially include other data sources to improve quality.
 
-### Source Links
+- ~~CRM, specifically the exposed Agentforce Sales/Salesforce connector, for Salesforce-backed reads, record links, account plans, transcript summaries, Agentforce Lead Nurturing assignments, and approved writes
+- The parent Sales workflow for Calendar, Scheduling, Meeting Transcripts, Email, Internal Messaging, Knowledge & Files, or Sales Intelligence context that Salesforce does not own
+- User-provided record ids, names, exports, field values, and business context when connector access is unavailable or a record needs disambiguation
 
-When referencing sources inline, prefer clickable Markdown links over plain bracket labels whenever the source exposes a useful URL. Use the source title, record name, channel/thread, or meeting/date as the link text, for example a clickable Markdown link whose visible text is `Meeting notes: May 19` or `Slack thread: May 15-21`. Use plain text labels only when no useful URL or stable connector-visible link is available, and say `(no useful link available)` when that absence matters.
+Avoid unsupported claims. If Salesforce is missing, unavailable, stale, ambiguous, or limited by the exposed connector surface, state the limitation.
+
+## Workflow Guidance
+
+Adhere strictly to these workflow steps. These override the default workflow in the index skill.
+
+- 1. Clarify and Gather Context
+    - Resolve the Salesforce task, target record, requested detail, and whether the user wants a read, draft, or approved write.
+    - For an ambiguous record, do the smallest exact or bounded candidate lookup, then ask the user to choose before using the record for a summary or write.
+- 2. First draft
+    - Prefer read-only discovery and the smallest correct record read or query. Use labels in user-facing output and include clickable record links when a trusted URL is available.
+    - For proposed changes, render a reviewed field-level draft with assumptions, source gaps, and the exact approval still needed.
+- 3. Approved action and verification
+    - Write only when the user explicitly asks for the write or approves the reviewed draft/update.
+    - Confirm the target record and supported fields before writing, send only intended changes, inspect the response, and verify with a narrow read when the response does not prove the outcome.
+
+## Overall Rules
+
+- Always cite sources using hyperlinks when useful links are available.
+- Keep the parent workflow authoritative for the sales task; this guide owns Salesforce-specific lookup, query, links, account-plan actions, assignment, and write safety.
+- Prefer discovery over guessing. Use exact ids or names first, then bounded candidates, then user choice when ambiguity remains.
+- Do not imply support for connector surfaces that are not exposed.
+- Do not delete, upsert by external id, call arbitrary automation, or execute a write without explicit approval.
 
 ## Connector Boundary
 
-The Salesforce CRM app in the Sales plugin is the third-party Agentforce Sales connector, bound in `.app.json` to app id `REPLACE_WITH_SALESFORCE_APP_OR_CONNECTOR_ID`.
-
 Use only the Agentforce Sales surfaces that are actually exposed:
 
-- Metadata and identity: `describe_global`, `describe_sobject`, `get_user_info`.
-- Record lookup and reads: `get_record_id_by_name`, `get_record_details`, `get_activity_history`.
-- Querying: `soql_query` only.
-- Sales-specific reads: `query_calendar_events`, `get_account_plan`, `query_agent_type`, `summarize_conversation_transcript`.
-- Writes and mutating sales workflows: `create_record`, `update_record`, `create_account_plan`, `assign_target_to_sdr`.
+- Metadata and identity: describe_global, describe_sobject, get_user_info
+- Record lookup and reads: get_record_id_by_name, get_record_details, get_activity_history
+- Querying: soql_query only
+- Sales-specific reads: query_calendar_events, get_account_plan, query_agent_type, summarize_conversation_transcript
+- Writes and mutating workflows: create_record, update_record, create_account_plan, assign_target_to_sdr
 
-Do not imply support for SOSL, global text search, query continuation, Bulk API, Composite API, Data 360, Tableau Analytics, Prompt Builder, Flow invocation, arbitrary invocable actions, generic Apex REST calls, delete, or upsert-by-external-id unless a future installed app explicitly exposes those tools. For cross-object keyword search, large exports, high-volume write jobs, delete/upsert needs, or analytics surfaces outside the exposed Agentforce Sales actions, state the missing connector surface and ask for a narrower Salesforce scope, exact object/field, exact identifier, or another approved tool.
+Do not imply support for SOSL, global text search, query continuation, Bulk API, Composite API, Data 360, Tableau Analytics, Prompt Builder, Flow invocation, arbitrary invocable actions, generic Apex REST, delete, or upsert-by-external-id. For unsupported cross-object keyword search, large exports, high-volume writes, delete/upsert, or analytics requests, state the missing surface and ask for a narrower object, field, exact identifier, or another approved tool.
 
-## Discovery And Identity
+## Salesforce Query And Write Rules
 
-1. Prefer discovery over guessing. Use `describe_global` for object matching and `describe_sobject` for field matching before non-obvious queries or writes.
-2. Use `get_user_info` for requests involving "my", "me", or the current Salesforce owner.
-3. In `describe_sobject`, check field API names, labels, data type, filterability, createability, updateability, nullability, picklist values, references, relationship names, and record type details when those properties affect the task.
-4. Use record type fields when record type changes defaults, picklist choices, required fields, or layout-sensitive behavior.
-5. For relationship queries, do not guess relationship names. Use metadata for relationship field paths and child relationship names.
-6. Use user-facing labels in final answers when known, and API names only when needed for precision or follow-up.
+### Discovery And Reads
 
-## Record Disambiguation
+- Salesforce is required for Salesforce-backed reads, links, account plans, assignments, transcript summaries, and writes. If it cannot be used, label the answer as not Salesforce-backed.
+- Use get_user_info for my, me, or current-owner requests. Use describe_global for uncertain objects and describe_sobject before non-obvious queries or writes.
+- Confirm API names, labels, data type, filterability, createability, updateability, nullability, picklists, references, relationship names, and record types only when they affect the task.
+- Do not guess relationship names. Treat broad wildcard matches as candidates, use business context to disambiguate, and ask before a summary or write if one targeted filter will not resolve the record.
+- Use get_record_id_by_name when a name must become an id, get_record_details for presentation-ready layout context, get_activity_history for activity summaries, query_calendar_events for Salesforce Events, and get_account_plan for account strategy context.
+- Resolve a specific VoiceCall or VideoCall id before summarize_conversation_transcript. If the call is unknown, query VoiceCall and VideoCall separately, then ask which call to summarize.
 
-1. Prefer exact name or id matches before broad text matching when locating records.
-2. Treat broad `LIKE '%...%'` filters as candidate discovery, not proof of the canonical record.
-3. Account names can match regions, subsidiaries, brands, domains, and email-like records. Do not silently pick the first result when multiple plausible records remain.
-4. Use available business context such as country, website, industry, owner, active opportunities, recent tasks, or the user's wording to disambiguate.
-5. If one additional targeted filter will not clearly disambiguate the result, present the candidate records to the user before taking write actions or using the record as the basis for a deal summary.
+### Query Guardrails
 
-## Reads And Queries
+- For non-trivial SOQL, identify the target object, needed fields, filters, sort or limit, display-versus-analysis purpose, and selectivity risk.
+- Use the simplest correct query with only needed fields, include Id when rows may be linked or reused, add a reasonable LIMIT, and filter only on fields Salesforce reports as filterable.
+- Do not send aggregate or grouped SOQL, including COUNT, SUM, GROUP BY, or aggregate aliases. Retrieve a bounded id-bearing set and summarize locally, or state that exact aggregate coverage is unavailable.
+- Do not filter on long text, rich text, Task.Description, history OldValue/NewValue, IsPriorityRecord, or other readable-but-unfilterable fields. Bound by parent, date, owner, status, or another filterable field and post-filter locally when bounded.
+- Use INCLUDES or EXCLUDES only for multipicklists. Scope FieldDefinition queries to a known entity, keep each OR disjunction scoped to one field, and split cross-field discovery before merging locally.
+- Prefer standard Account, Opportunity, Contact, Task, and Event fields before optional or custom fields. After two focused schema or query-shape failures for the same fact, fall back to safer standard fields, exact reads, a narrower request, or a clear evidence gap.
+- Distinguish explicit reauthentication errors from runtime readiness failures.
 
-1. Before authoring non-trivial SOQL, identify the target object, fields needed, filters, sort or limit requirements, whether the query is for display or analysis, and whether selectivity is a concern.
-2. Use `soql_query` for structured reads, relationship fields, ordering, aggregation, semi-joins, anti-joins, and filters on fields Salesforce marks as filterable.
-3. Generate the simplest correct query: select only fields needed for the sales task, include `Id` whenever records may be shown, linked, or used for follow-up, and add a reasonable `LIMIT` unless the user asked for a complete scoped result.
-4. Prefer filtering in SOQL rather than post-filtering. Use aggregates for counts and grouped summaries instead of loading unnecessary records.
-5. Confirm relationship names before querying. Use child-to-parent traversal for parent data from child rows, parent-to-child subqueries for child rows from parent records, and aggregate queries for rollups.
-6. Evaluate wildcard usage carefully. Broad `LIKE '%...%'` filters are candidate discovery, can defeat indexes, and are not proof of the canonical record.
-7. This connector does not support SOSL. If the user asks for keyword search, object-unclear search, cross-object search, or text search in fields that are readable but not SOQL-filterable, say that Agentforce Sales only exposes SOQL and ask for a narrower object, field, or exact identifier.
-8. This connector does not expose a separate query continuation tool. Use a SOQL `LIMIT` when total rows must be capped, tighten filters for high-volume requests, and state the connector limit when the user needs complete export-style coverage.
+### Writes And Links
 
-## Reads And Display Context
+- For update_record, send only changed fields. For create_record, send only intended fields and include record type fields only when they affect defaults, picklists, or createability.
+- Do not probe writes to discover validation rules. If Salesforce returns FIELD_CUSTOM_VALIDATION_EXCEPTION, surface the exact message and ask for the missing or corrected business value.
+- Use create_account_plan instead of generic record creation for account plans. Resolve AccountId and gather or derive Name, challenge, competitive, relationship, strategy, StartDate, and Status first; report unsupported AccountPlan errors plainly.
+- Before assign_target_to_sdr, call query_agent_type, present available agents, and get the user's selection. The target must be a Contact or Lead id.
+- Inspect every write response and verify with returned fields, get_record_details, or a narrow soql_query when the response does not prove the outcome.
+- Prefer a connector-returned record URL. If a trusted org or instance base URL is available, construct the Lightning record URL; otherwise show the object label and id instead of inventing a link.
 
-- Prefer explicit field projections for business facts and exports.
-- Use `get_record_id_by_name` for exact or near-exact name-to-id lookup when the next step needs a Salesforce id.
-- Use `get_record_details` when the task needs presentation-ready context such as layout fields, optional fields, display values, child relationships, or record-type-sensitive UI metadata. Pass both `Compact` and `Full` layout types unless the user asks for a narrower UI read.
-- Use `get_activity_history` for Account, Contact, Lead, or Opportunity activity summaries.
-- Use `query_calendar_events` for Salesforce calendar or meeting questions.
-- Use `get_account_plan` for account strategy, plan, relationship, challenge, or status context.
-- Use `summarize_conversation_transcript` only after resolving a specific VoiceCall or VideoCall id. If the call is unknown, query VoiceCall and VideoCall separately with `soql_query`, then ask the user which call to summarize.
-- If a requested field is absent from a UI/layout-oriented response, retry with explicit fields before concluding the field is unavailable.
+## Modes
 
-## Query Traps And Recovery
+### 1. Salesforce Read
 
-- Do not use `WHERE` filters on fields that Salesforce reports as not filterable.
-- Long text and rich text fields are common traps: they may be readable in `SELECT` but rejected in `WHERE`.
-- A key example is `Task.Description`: do not use `WHERE Description LIKE ...`. Because Agentforce Sales does not expose SOSL, ask for a narrower filterable field, exact record, date/owner/status filter, or another approved search surface.
-- If a field or object is unknown, call `describe_sobject` or use a narrow `FieldDefinition` SOQL query before retrying.
-- If the first result set is too broad, tighten by object, date, owner, status, or another confirmed filterable field rather than adding unsupported text filters.
-- Prefer standard, commonly present fields on `Account`, `Opportunity`, `Contact`, `Task`, and `Event` before optional org-specific fields or relationship-heavy objects.
-- Do not assume optional fields or objects exist, including `CurrencyIsoCode`, `AnnualRevenue`, `OpportunityTeamMember`, `AccountTeamMember`, `Opportunity.Contact`, `OpportunityContactRole.Name`, `PricebookEntry` SOSL, or `FieldDefinition.IsCustom`. Describe the object/field first, or omit the optional enrichment when the standard record data is enough.
-- Cap recovery from invalid schema/query errors. After two focused schema or query-shape failures for the same fact, fall back to safer standard fields, SOSL, exact record reads, or a clear evidence gap instead of continuing exploratory retries.
-- Distinguish connector auth/runtime failures from schema misses. A message that explicitly says reauthentication is required should produce a re-auth CTA; MCP startup, handshake timeout, transport, or availability errors should be described as connector readiness/runtime issues and should not be framed as proof that the user must reconnect.
+- Use when the user or a parent Sales workflow needs account, opportunity, contact, lead, activity, event, account-plan, or transcript context.
+- Resolve the target first, retrieve only the fields and history that affect the sales decision, and call out gaps or ambiguity.
 
-## Writes
+#### Output Format
 
-Write only when the user explicitly asks to create or update Salesforce data, create an account plan, or assign a Contact or Lead to Agentforce Lead Nurturing.
+```md
+# [Record Or Salesforce Context]
 
-- Confirm object API name, record id, and field API names before writes.
-- For `update_record`, send only changed fields in `fields`. For Agentforce AI-generated text updates on core sales objects, only use fields the tool permits, especially `Description` when that is the documented allowed target.
-- For `create_record`, send only intended create fields and include record type fields only when record type affects defaults, picklists, or createability.
-- Use `create_account_plan` for account plan creation instead of generic record creation. Its body must include `AccountId`, `Name`, the challenge, competitive, relationship, and strategy fields, `StartDate`, and `Status`; resolve the account and gather, derive from grounded Salesforce/source evidence, or ask for any missing required values before calling the tool.
-- Before `assign_target_to_sdr`, call `query_agent_type` to list available Agentforce Lead Nurturing or SDR agents, present the choices, and get the user's selection. The target must be a Contact or Lead id.
-- Stop if the user asks to delete, upsert by external id, call Apex REST, invoke Flow, or run arbitrary custom Salesforce automation; those operations are outside this Agentforce Sales connector surface.
-- After any write, inspect the response and, when the response does not prove the outcome, verify with returned fields, `get_record_details`, or a narrow `soql_query` before summarizing the result.
+## Summary
 
-## Agentforce Sales Workflows
+- [Most important CRM fact with source link]
+- [Current account, opportunity, contact, activity, or plan signal]
+- [Risk, missing field, ambiguity, or source gap]
 
-- Use `create_account_plan` and `get_account_plan` for account planning requests, but report Salesforce or connector errors plainly if the org does not support the AccountPlan object or the action returns unsupported-object errors. If the user only provides an account name or id, treat that as the target account, not as enough input to create the plan; first resolve `AccountId`, propose or collect the required plan body, and proceed only when the required fields are present.
-- Use `query_agent_type` and `assign_target_to_sdr` for Agentforce Lead Nurturing assignment only when the user asks for that assignment. Treat assignment as a mutating workflow.
-- Use `query_calendar_events` for Salesforce Event records tied to calendar or meeting questions.
-- Use `summarize_conversation_transcript` for voice or video call summary requests after resolving the call id with SOQL or user input.
+---
 
-## Output
+{Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
 
-Return concise, business-facing results. Include clickable Salesforce record links only when a runtime source provides the org base URL, record URL, or instance URL.
+{Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}
+```
 
-Link rules:
+### 2. Salesforce Update Draft
 
-- Prefer a record URL returned by the connector.
-- If connector metadata exposes an org or instance base URL, construct links with that base: `https://<org-or-instance-base>/lightning/r/<ObjectApiName>/<Id>/view`.
-- If only `Id` is known and no trusted base URL is available, show the object label and id instead of inventing an org-specific URL.
+- Use when the user asks to prepare a CRM update, note, field change, or create action but has not yet approved the write.
+- Keep proposed values separate from current values and identify the target record, assumptions, and required approval.
+
+#### Output Format
+
+```md
+# Proposed Salesforce Update
+
+**Target:** [Record name, type, and trusted link or id]
+
+| Field | Current Value | Proposed Value | Reason / Source |
+| --- | --- | --- | --- |
+| [Field label] | [Current value or Unknown] | [Proposed value] | [Grounded reason + link] |
+
+## Before I Write
+
+- [Missing business input, validation risk, or approval needed]
+
+---
+
+{Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+{Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}
+```
+
+### 3. Approved Salesforce Write
+
+- Use only after the user explicitly asks for the supported write or approves the reviewed draft.
+- Verify the result before reporting completion when the write response is not conclusive.
+
+#### Output Format
+
+```md
+# Salesforce Updated
+
+**Record:** [Record name, type, and trusted link or id]
+
+- **Changed:** [Field or supported action]
+- **Result:** [Verified outcome]
+- **Not changed:** [Any requested item that was unsupported or skipped]
+
+---
+
+{Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+{Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}
+```
+
+### 4. Account Plan, SDR Assignment, Or Transcript
+
+- Use when the user explicitly asks for an account plan, Agentforce Lead Nurturing assignment, Salesforce event, or voice/video transcript summary.
+- Resolve the required record or call id first. For an SDR assignment, show available agents and get the user's selection before assigning.
+
+#### Output Format
+
+```md
+# [Account Plan / SDR Assignment / Transcript Summary]
+
+## Target
+
+- [Resolved account, contact, lead, event, or call + trusted link]
+
+## Result
+
+- [Supported read, draft, or verified action]
+- [Important limitation or missing required input]
+
+---
+
+{Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+{Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}
+```

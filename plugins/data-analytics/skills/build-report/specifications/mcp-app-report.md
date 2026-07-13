@@ -2,6 +2,8 @@
 
 Use this when the selected report surface is a bounded manifest/snapshot rendered by the Data Analytics MCP artifact app.
 
+Do not select this specification when `surface = chatgpt_web` and `mode = work_mode` are both positively identified. Also do not select it when `mode = work_mode` is positive and `surface` is unknown or otherwise not positively `codex_desktop`. Use HTML report mode instead.
+
 Before creating or revising an MCP app report artifact, read `../../../src/analytics-app-core.md`. It defines the shared dashboard/report artifact contract, bounded snapshot, source safety, runtime behavior, validation helpers, and MCP-specific payload/encoding rules.
 
 ## Build Shape
@@ -10,21 +12,22 @@ Before creating or revising an MCP app report artifact, read `../../../src/analy
 - Set `manifest.title` to the reader-facing title.
 - For MCP app reports, make the first reader-facing block a normal `type: "markdown"` block whose body is a single `#` heading matching `manifest.title`. Do not rely on the app chrome as the report's only visible title.
 - The title block is only the report title. For stakeholder reports, the next narrative markdown block must start with a visible `## Executive Summary` heading before the summary content. Do not collapse the executive summary into the title block or rely on bold opening paragraphs, KPI cards, subtitles, or metric strips to satisfy the executive-summary section role.
-- Use reader-facing headings inside markdown blocks to separate major report segments. Do not rely on chart titles, table titles, or non-rendered metadata as the only visible title for a major segment.
-- Use `type: "metric-strip"` with `cardIds` when a KPI strip is needed; do not create standalone metric blocks.
+- Give each independently laid out or editable major report segment its own `type: "markdown"` block with one peer `##` section heading. Do not place multiple peer `##` headings in one markdown body; use `###` headings only for subordinate content that should remain in the same card. Do not rely on chart titles, table titles, or non-rendered metadata as the only visible title for a major segment.
+- Use `type: "metric-strip"` with `cardIds` when a KPI strip is needed; do not create standalone metric blocks. Every referenced `manifest.cards[]` item must attach canonical provenance through inline `source` or `sourceId` so the card's top-right source icon opens its data-source modal.
+- Choose all and only decision-relevant headline metrics. Do not pad or truncate a strip to reach four cards—or any preferred count. Each card must add one distinct, interpretable headline; one headline does not mean one `metrics[]` entry. Use supporting badges for short prior-period, target, or delta context tied directly to that headline, especially when the same directional comparison appears in the executive summary or findings, and split independent secondary metrics into their own cards, charts, narrative, semantic strips, or a detail table. Keep card labels and badge labels concise enough to remain on one line. Odd card counts are valid; the renderer balances rows responsively.
 - Connect block evidence to source references when the surface supports it, and preserve the full audit trail in source metadata or supporting artifacts.
 - MCP app reports must include at least one native manifest chart block backed by reviewed snapshot data.
 - Default to built-in report artifact blocks for MCP app reports: `markdown`, `metric-strip`, `chart`, and `table`. Use native blocks for ordinary narrative sections, KPI strips, charts, tables, caveats, and source notes instead of hand-authored HTML.
 - Use report chart types supported by the current MCP artifact schema. Keep report interaction bounded; use dashboards, not reports, for filterable exploration.
 - Include report-native visual/table blocks when quantitative evidence is available and useful, not only markdown summaries.
 - Do not render filters or dashboard-style exploration controls in an MCP app report.
-- Metric cards use one `metrics[]` list. The first metric renders as the large value; later metrics render as labeled secondary badges. Each metric declares `label`, `field`, optional `format`, and `signed: true` for signed changes.
+- Metric cards use one `metrics[]` list. The first metric is the card's only headline and renders as the large value; later metrics render as labeled comparison badges when they describe that same headline's prior period, target, or delta. When a short, directly relevant directional comparison is available—especially one already used in the executive summary or findings—include it as a later metric rather than omitting it to preserve a one-headline card. Each metric declares `label`, `field`, optional `format`, and `signed: true` for signed changes.
 - When a metric label is not self-defining, include a card description or nearby markdown that explains the metric in reader terms, and include the exact calculation in `source.query.metric_definitions`.
 - Percent values rendered with `format: "percent"` or `valueFormat: "percent"` must use the same numeric scale consistently in the provided data. Use decimal rates for computed numeric fields, such as `0.149` for `14.9%`, or pass preformatted reader-facing strings where exact display text matters.
 
 ## Source And Data Requirements
 
-- Every native chart and table block must expose provenance through the canonical `source` structure, either directly on the block or by `sourceId` reference to `manifest.sources[]`. Put runnable SQL/code in `source.query.sql`, a human-readable query summary in `source.query.description`, table names in `source.query.tables_used`, material predicates in `source.query.filters`, and metric formulas in `source.query.metric_definitions`. Do not rely on dataset names, source labels, or source order to attach provenance.
+- Every native metric card, chart, and table block must expose provenance through the canonical `source` structure, either directly on the item or by `sourceId` reference to `manifest.sources[]`. Put runnable SQL/code in `source.query.sql`, a human-readable query summary in `source.query.description`, table names in `source.query.tables_used`, material predicates in `source.query.filters`, and metric formulas in `source.query.metric_definitions`. Do not rely on dataset names, source labels, or source order to attach provenance.
 - Do not create artifact `manifest.filters` just to document SQL predicates in a report. Report predicate provenance belongs in `source.query.filters`; `manifest.filters` is only for interactive controls.
 - Every native chart block must be backed by a source dataset that is richer than the chart's visible encodings. Do not create chart datasets or expanded source-data tables with only the plotted fields when the reviewed analysis can expose more context. Preserve useful dimensions, including relevant customer, account, company, segment, and product names, plus time/cohort fields, potential grouping columns, numerator/denominator components, ranks, baselines, comparison periods, and adjacent measures that help the reader audit or re-encode the chart.
 - Retaining a potential grouping column for auditability does not mean the shipped chart should bind it as `encodings.color`, series, or grouped/stacked behavior; only add visible grouping when it is a second categorical dimension beyond the axis category.
@@ -34,12 +37,12 @@ Before creating or revising an MCP app report artifact, read `../../../src/analy
 ## Chart And Custom Block Rules
 
 - For chart widgets and native manifest charts, provide the chart family and fields explicitly according to the MCP tool descriptions. Validate before rendering; the app should not choose the first dimension/measure, flip horizontal bar axes, infer grouping fields, or guess units.
-- Use `type: "html"` blocks when the user requests report customization that requires custom rendering, including requests to use Seaborn, Matplotlib, a bespoke visual/layout treatment, or a chart form that cannot be represented with built-in report blocks and native chart/table options.
-- Route custom chart work through `$visualize-data`, generate the chart from the Seaborn templates as a compact Matplotlib SVG, embed it in the HTML block, and document the exception. Keep ordinary narrative, KPI, native chart, table, caveat, and source sections in built-in blocks.
+- Use `type: "html"` blocks when the user requests report customization that requires custom rendering, including a bespoke visual/layout treatment or a chart form that cannot be represented with built-in report blocks and native chart/table options.
+- Route custom chart work through `$visualize-data`, generate a compact static SVG or image from reviewed rows, embed it in the HTML block, and document the exception. Keep ordinary narrative, KPI, native chart, table, caveat, and source sections in built-in blocks.
 - Keep custom chart HTML blocks as containers around generated chart images with title, caption, alt text, and source context. Do not ship hand-authored SVG, CSS bars, canvas, or JavaScript as the chart itself.
 - HTML blocks auto-size to their content; inspect the rendered artifact for clipping, missing images, and collisions with nearby blocks before handoff.
 - MCP report chart cards and detail pages should share the same native renderer and chart-type compatibility logic. Do not embed the standalone inline chart widget or rebuild a separate detail-page chart implementation.
-- Do not emit inline MCP chart or table widgets during report-mode work, and do not treat inline MCP chart/table widgets as report visuals or evidence previews. Report charts, tables, and previews must live in the selected report surface and be backed by reviewed snapshot data or static PNG assets.
+- Do not emit inline MCP chart or table widgets during report-mode work, and do not treat inline MCP chart/table widgets as report visuals or evidence previews. Report charts, tables, and previews must live in the selected report surface and be backed by reviewed snapshot data or static embedded evidence.
 
 ## Revision And Rendering
 

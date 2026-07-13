@@ -9,12 +9,6 @@ Use this skill only when the user explicitly needs a PDF from an existing Data A
 
 The expected path is static HTML -> Chrome headless print-to-PDF -> PDF verification. If only a live MCP app report exists, create or retrieve the matching static HTML/export source first.
 
-## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
-
 ## Workflow
 
 1. Resolve the static source.
@@ -23,7 +17,7 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
 
    When the user provides a hosted artifact URL, first determine whether it exposes a usable static export or package source. If the static export is unavailable but the validated artifact payload is still available in the current run, create the matching static HTML/export from that payload and preserve source provenance in the handoff. If neither a static export nor the artifact payload is available, stop with a blocker instead of printing the live app shell or rebuilding the report from memory.
 
-   When creating or repairing the static source, keep visible metadata reader-facing. Do not copy internal artifact runtime fields, package plumbing, or validator/debug state into the report body, header, footer, or source section. For example, omit raw labels such as snapshot status, package path, widget type, manifest path, renderer IDs, validation status, and local temp paths from the visible PDF. If a runtime detail matters for audit or troubleshooting, preserve it in support notes or the final handoff instead of the PDF. Translate data-state caveats into reader language only when they affect interpretation, such as "synthetic demo data" or "partial source coverage."
+   When creating or repairing the static source, keep visible metadata reader-facing. Do not copy internal artifact runtime fields, package plumbing, or validator/debug state into the report body, header, footer, or source section. For example, omit raw labels such as snapshot status, package path, widget type, manifest path, renderer IDs, validation status, and local temp paths from the visible PDF. If a runtime detail matters for audit or troubleshooting, preserve it in support notes rather than the visible PDF. Translate data-state caveats into reader language only when they affect interpretation, such as "synthetic demo data" or "partial source coverage."
 
 2. Generate the PDF with Chrome CLI headless print-to-PDF.
 
@@ -63,13 +57,13 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
 
 6. Hand off the PDF.
 
-   Return the PDF path, source HTML path or URL, and verification performed. If the static HTML/export had to be created from an artifact payload because the hosted URL did not expose one, say that briefly. If verification could not be completed, state the gap clearly.
+   Return the PDF path and, when useful, the source HTML path or URL. Keep routine check details in support artifacts. Do not list internal checks in the user-facing handoff unless a check failed, was unavailable, or produced a user-relevant caveat. If the static HTML/export had to be created from an artifact payload because the hosted URL did not expose one, say that briefly. If required checks could not be completed, state the gap clearly.
 
 ## Standards
 
 - Preserve the reader-facing artifact content: title, narrative, charts, tables, caveats, source details, and generated-at or source freshness details when present.
 - Omit app-only controls: top bars, share menus, edit controls, refresh controls, drag handles, hover-only menus, and interactive-only affordances.
-- Omit internal artifact and conversion metadata from the visible PDF. Do not show raw runtime fields, implementation state, package labels, local paths, validator/debug labels, or status strings that exist only to operate the app or export pipeline. Keep audit-useful internals in support files or the handoff, and use plain reader-facing caveats in the PDF when a data state affects interpretation.
+- Omit internal artifact and conversion metadata from the visible PDF. Do not show raw runtime fields, implementation state, package labels, local paths, validator/debug labels, or status strings that exist only to operate the app or export pipeline. Keep audit-useful internals in support files, and use plain reader-facing caveats in the PDF when a data state affects interpretation.
 - Prefer a text PDF with selectable/searchable text. Use a screenshot/image PDF only when a faithful text PDF is not viable, and state that text may not be selectable or searchable.
 - Keep the static source as the PDF source of truth. Do not reconstruct the report from memory when a source HTML/export exists.
 - Do not create a model-authored PDF from scratch as a normal fallback. Direct PDF construction is acceptable only as an explicitly labeled last-resort workaround after the user accepts the quality limitation.

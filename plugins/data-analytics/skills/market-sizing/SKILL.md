@@ -1,7 +1,13 @@
 ---
 name: market-sizing
-description: "Estimate a market or opportunity size, such as TAM/SAM/SOM, by defining scope, choosing a sizing model, checking connected context and public sources, and presenting transparent assumptions, sensitivity, uncertainty, and validation priorities. Use for market or opportunity sizing; not for KPI reporting or metric diagnostics."
+description: "Estimate market, segment, or opportunity size with transparent assumptions and uncertainty. Use for TAM/SAM/SOM, sizing scenarios, or comparing the scale of possible opportunities."
 ---
+
+## Related Skills
+
+Use $visualize-data when the sizing result needs a chart or figure.
+
+Use $build-report to package the final estimate, assumptions, sensitivity, caveats, and source context whenever this skill is selected, unless the user explicitly requests an inline, chat-only, brief/no-artifact answer, asks not to create a report/file/artifact, or selects another primary artifact.
 
 # Market Sizing
 
@@ -9,19 +15,12 @@ Use this skill to produce a defensible estimate of a market or opportunity from 
 
 ## Skill Configuration
 
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
-
 ### Source Discovery And Verification
 
-Use the relevant semantic layer first when one exists. Treat it as the starting map for candidate metrics, tables, joins, filters, caveats, source precedence, and known conflicts.
+Use the relevant semantic layer as a starting map, not a boundary.
 
-Do not stop at the semantic layer or the first plausible source. Search across the relevant available company source lanes, including structured data or data warehouses, dashboards, company docs, team communication, notebooks, code repositories, and other connected company knowledge or data that could change the answer.
-
-For source-backed analytical work, always verify through live source reads. When the answer depends on data, run fresh data queries against the available structured-data sources before drawing conclusions, even when the semantic layer already names likely tables or definitions.
-
-Use the combined evidence to determine which source controls the answer, note meaningful disagreements, and state why the selected source is authoritative.
+1. **Explore all possible sources.** Search every connected or provided source that could contain task-relevant data or change the interpretation. Within each structured-data source, run fresh catalog or metadata discovery for relevant schemas, datasets, tables, views, models, and metrics. Known sources, tables, dashboards, and semantic mappings are starting points, not stopping points.
+2. **Compare duplicates and conflicts.** When sources overlap or disagree, compare ownership, freshness, definition, grain, coverage, and directness. Use the best authoritative source, or combine complementary sources when needed. Note material conflicts, explain why the selected source or sources control the answer, and verify selected data through live reads before concluding.
 
 ### Source Access Guardrail
 
@@ -85,7 +84,7 @@ Keep derived values traceable to formulas or code rather than hardcoded outputs.
 
 Use $jupyter-notebooks when code is needed for source harmonization, calculations, sensitivity analysis, or reusable modeling logic. Keep formulas, inputs, intermediate calculations, and sensitivity logic inspectable.
 
-Use $spreadsheets when the user requests a spreadsheet, workbook, or Google Sheets deliverable, or when a market-sizing model would materially benefit from editable assumptions, sensitivity tables, charts, or polished workbook formatting.
+Use the `$Spreadsheets` skill when the user requests a spreadsheet, workbook, or Google Sheets deliverable, or when a market-sizing model would materially benefit from editable assumptions, sensitivity tables, charts, or polished workbook formatting.
 
 ### 6. Test Sensitivity
 
@@ -97,10 +96,19 @@ Use ranges when uncertainty is material. Do not hide uncertainty behind a single
 
 ### 7. State The Estimate And Validation Priorities
 
-End with the estimate, method, key assumptions, uncertainty, and next validation priorities.
+End by handing the estimate, method, key assumptions, uncertainty, and next validation priorities to $build-report unless the user explicitly waives report creation or selects another primary artifact. This handoff is mandatory when no explicit human waiver was given; do not infer a waiver because the user asked for an estimate or did not use the word "report". This workflow owns the sizing model and conclusion; $build-report owns the reader-facing structure, visuals, evidence placement, and delivery surface.
 
-Close with the market definition, estimate or range, method, main uncertainty drivers, sensitivity takeaways, validation priorities, and practical interpretation for the user's decision.
+Before handoff, make the market-sizing conclusion explicit:
+
+- market definition and measurement unit
+- estimate or range
+- method and calculation chain
+- key assumptions and source support
+- main uncertainty drivers and sensitivity takeaways
+- validation priorities and practical interpretation for the user's decision
 
 If source coverage is thin, say which major inputs rely on proxy assumptions and what source would most improve them.
 
 Use $validate-data when methodology, calculations, assumptions, caveats, or source support need review before sharing.
+
+Do not render charts directly from this skill. If a sensitivity, scenario, funnel, or market-breakdown visual would clarify the estimate, pass that visual intent and supporting evidence to $build-report so $visualize-data owns chart selection and QA.

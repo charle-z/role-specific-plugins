@@ -1,19 +1,18 @@
 ---
 name: validate-data
-description: "QA an analysis before sharing: review methodology, metric definitions, SQL/query logic, calculation checks, chart integrity, bias risks, caveats, reproducibility, and whether conclusions are supported by evidence. Use when reviewing a report, notebook, spreadsheet, SQL query/results, dashboard, chart, recommendation, or stakeholder-ready analysis before presentation or publication."
+description: "Validate whether an analysis is accurate, well-supported, and ready to share or use for a decision. Use when reviewing methodology, calculations, comparisons, visuals, caveats, or conclusions."
 ---
+## Related Skills
+
+Use $analyze-data-quality when validation depends on whether the underlying data is trustworthy, comparable, fresh, or at the right grain.
+
+Use $product-business-analysis when the task asks for a recommendation or decision after the validation pass.
 
 # Validate Data Analysis
 
 Validate an analysis before it is shared with stakeholders. Focus on whether the question, data, methodology, calculations, visuals, claims, caveats, and recommendations are trustworthy enough for the stated audience and decision.
 This skill is for analysis QA, not raw dataset profiling alone. When validation depends on dataset reliability checks such as freshness, grain, missingness,
 duplicates, join coverage, or source mismatches, use $analyze-data-quality as a companion.
-
-## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
 
 ## Workflow
 
@@ -136,7 +135,7 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
 
 ### Visualization Checks
 
-- Bar charts should generally start at zero.
+- Bar charts should generally start at zero; waterfall, bridge, variance, and other delta-focused charts may use a non-zero or narrowed value axis when zero would materially compress the intended movement, provided exact values, units, and the focused scale are clear.
 - Comparison charts should use consistent scales unless the scale difference is explicit and justified.
 - Axes, units, legends, and date ranges should be labeled.
 - Category ordering should match the comparison the reader should make.

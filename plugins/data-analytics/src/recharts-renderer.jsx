@@ -255,6 +255,7 @@ function MeasuredChartRenderer({
     <ChartRenderer
       chart={chart}
       height={dimensions.height}
+      htmlReport={options.htmlReport}
       onVisibleSeriesChange={options.onVisibleSeriesChange}
       responsive={false}
       rows={rowsForType(dataset, type)}
@@ -267,9 +268,14 @@ function MeasuredChartRenderer({
 }
 
 export function destroyRechartsChart(container) {
-  if (!container || !container.__datascienceRechartsRoot) return;
-  container.__datascienceRechartsRoot.unmount();
-  container.__datascienceRechartsRoot = null;
+  if (!container) return;
+  if (container.__datascienceRechartsRoot) {
+    container.__datascienceRechartsRoot.unmount();
+    container.__datascienceRechartsRoot = null;
+  }
+  // Uploaded or serialized HTML can contain a prior live mount without its
+  // in-memory React root. Clear it before remounting so boot stays idempotent.
+  container.replaceChildren();
 }
 
 export function renderRechartsChart(container, dataset, type, options = {}) {

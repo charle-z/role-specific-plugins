@@ -85,3 +85,45 @@ test("word percent units format semantic rates", async () => {
   assert.equal(formatValue(0.625, "number", "percentage"), "62.5%");
   assert.equal(formatValue(60, "compact", "%"), "60%");
 });
+
+test("percent valueFormat with literal percent units uses fractional-rate scale", async () => {
+  const { formatValue } = await loadChartTransforms();
+
+  assert.equal(formatValue(0.98, "percent", "%"), "98%");
+  assert.equal(formatValue(0.006, "percent", "%"), "0.6%");
+  assert.equal(formatValue(2, "percent", "%"), "200%");
+  assert.equal(formatValue(98, "percent", "%"), "9,800%");
+  assert.equal(formatValue(60, "number", "%"), "60%");
+  assert.equal(formatValue(0.98, "number", "%"), "0.98%");
+});
+
+test("waterfall axes narrow when a zero baseline compresses bridge movement", async () => {
+  const { buildWaterfallRows, getWaterfallYAxisScale } = await loadChartTransforms();
+  const chart = { series: [{ field: "value" }] };
+  const rows = [
+    { step: "May", value: 1271.5 },
+    { step: "Plus", value: 12.6 },
+    { step: "Pro", value: 28.2 },
+    { step: "Go", value: 6.8 },
+    { step: "Other", value: 0 },
+  ];
+
+  const scale = getWaterfallYAxisScale(buildWaterfallRows(chart, rows));
+
+  assert.ok(scale, "expected a focused non-zero domain");
+  assert.ok(scale.domain[0] > 0);
+  assert.ok(scale.domain[0] < 1271.5);
+  assert.ok(scale.domain[1] > 1319.1);
+  assert.equal(scale.ticks.includes(0), false);
+});
+
+test("waterfall axes keep the default domain when the bridge crosses zero", async () => {
+  const { buildWaterfallRows, getWaterfallYAxisScale } = await loadChartTransforms();
+  const chart = { series: [{ field: "value" }] };
+  const rows = [
+    { step: "Loss", value: -10 },
+    { step: "Recovery", value: 20 },
+  ];
+
+  assert.equal(getWaterfallYAxisScale(buildWaterfallRows(chart, rows)), undefined);
+});

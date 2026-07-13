@@ -1,161 +1,157 @@
 ---
 name: index
-description: "Use to discover specific skills for the Sales plugin, when it is at-mentioned directly, or for any mentions of potentially relevant work, including: meeting prep or call follow-up; account research, monitoring, or prioritization; internal source finding; competitive briefs; deal strategy; pipeline or forecast review; company or contact enrichment; customer quote retrieval; rep coaching; business cases; sales company research; and CRM or data enrichment workflows."
+description: "Use this Sales index first for explicit Sales mentions and clear seller workflows: prospecting, lead qualification, account research, monitoring or prioritization, meeting prep, call follow-up, outreach research, deal strategy, pipeline or forecast review, CRM-backed context or data enrichment, internal source finding or sales support, customer quotes or evidence, business cases, competitive briefs, rep coaching, sales company research, and company or contact enrichment. For implicit use require clear seller, prospect, account, opportunity, pipeline, forecast, CRM, or customer-facing sales intent."
 ---
 
-# Skill Purpose
+# Sales Index Skill
 
-Route broad Sales requests to the right focused workflow. Treat invocation of this index as strong intent to use this plugin; default to loading and following any relevant focused skill for related sales work.
 
-## Skill Configuration
+## Context-Gathering Intake
 
-### User Context
+Whenever this skill asks for context, strongly prefer using the `answers-ask-user-input` skill and the `ask_user_input` tool over other tools such as `request_user_input`; otherwise ask directly in the conversation.
 
-Mandatory pre-answer gate: Invoke `sales:user-context` in preflight mode by loading `[$sales:user-context](../user-context/SKILL.md)` and running its preflight script before answering, searching connectors, retrieving evidence, or drafting output. Do not look for a callable MCP tool named `sales:user-context`. Use the returned `sales_preflight` envelope as authoritative for saved context, source-category mapping, final obligations, and conditional guidance. Do not read or reinterpret raw Sales state files unless preflight fails, local shell access is unavailable, or the user explicitly asks for raw state inspection.
+After this index is invoked, treat it as a router rather than the final workflow. If any focused skill plausibly owns the request, select and follow the best match; do not answer through the index alone. Handle broad orientation requests directly through the canonical orientation response, and handle other plugin-level questions directly only when no focused skill owns them.
 
-Route direct context requests to `user-context` as the primary workflow. This includes remember/save/recall/inspect/customize/setup requests and broad future-facing instructions or corrections that may be reusable after Sales work. Route requests to run Sales Company Research, learn how the user's team sells from available company context, discover useful Sales resources, or fill missing company-context setup to `sales-company-research`; that skill uses `user-context` for save/update policy. Let `user-context` own direct state reads/writes, confirmation wording, action-oriented continuation, and successful-run learning; this index should only identify and route those cases.
+MANDATORY: Read the frontmatter description for ALL skills in this plugin, and based on that, decide which to trigger and read more deeply.
 
-### Audience And Language
+## Plugin Purpose
 
-Write for Sales users, not plugin maintainers. This applies to final answers, setup/status readbacks, failure explanations, tool preambles, and mid-turn progress narration.
+Sales provides evidence-grounded workflows for customer-facing preparation, follow-up, account and prospect research, pipeline decisions, deal strategy, customer evidence, internal navigation, business cases, coaching, and CRM-backed context.
 
-Translate implementation work into practical Sales impact: what Sales is checking, setting up, saving, or preparing, and why it matters. Avoid implementation terms such as preflight, state file, cache, raw connector id, heartbeat, targetThreadId, schema, API, runtime, metadata, and provider taxonomy unless the user asks for debugging details.
+## Broad Orientation
 
-### Source Links
+For broad orientation requests such as “what can you do?”, “help me get started”, “what should I try?”, or “how do I use Sales?”, do not choose a focused workflow. Load `references/orientation-response.md` and return its user-facing content as written. Treat that file as the canonical, updatable output surface for this branch. Offer the full skill catalog only when the user asks for it.
 
-When referencing sources inline, prefer clickable Markdown links over plain bracket labels whenever the source exposes a useful URL. Use the source title, record name, channel/thread, or meeting/date as the link text, for example a clickable Markdown link whose visible text is `Meeting notes: May 19` or `Slack thread: May 15-21`. Use plain text labels only when no useful URL or stable connector-visible link is available, and say `(no useful link available)` when that absence matters.
+## Cross-Skill Best Practices
 
-### Broad Orientation And Help Requests
+These should be used as configuration and rules to be followed by default across all skills.
 
-For broad orientation and help requests:
+### Audience and Language
 
-- Handle open-ended Sales asks from this index before choosing a focused workflow.
-- Route requests such as `what can you do?`, `help`, `orient me`, `what should I try first?`, `how do I use Sales?`, setup-adjacent capability questions, and similar plugin-level requests here when the user needs orientation more than a specific artifact.
-- Answer from the skill map in this file using the default shape below.
-- Include concrete low-friction next prompts that start with `@Sales`, name the sales job, and use a realistic anchor.
-- Include a short setup context section from the `sales_preflight.context.sources` envelope when any source category is not active, needs a user choice, was skipped, or is otherwise unresolved.
-- Keep setup context seller-facing: name the practical source category, use model judgment to explain the likely user-experience impact from the category label, preferred apps, setup action, and suggested next prompts, then give the smallest next action or fallback.
-- Show at most three highest-impact gaps by default, and never more than five setup-context bullets total. Prioritize gaps in the order most relevant to the examples you are suggesting rather than following a hard-coded impact catalog.
-- If all categories are active, keep setup context to one sentence such as `Your core Sales sources look ready; I'll still try each source only when a workflow needs it.`
-- When the current context or available sources identify a real meeting, call, account, deal, forecast, account list, customer question, or feedback theme, use the relevant focused skill's inline first-run and next-step guidance to make the suggested prompt contextual.
-- For setup context wording, be direct and practical, for example: `You won't be able to properly use meeting follow-up until a transcript or meeting-notes provider is connected, but you can paste call notes or a transcript export for now.`
-- Use static examples only when no suitable context is available.
-- Do not expose raw status names, onboarding state fields, connector ids, or implementation terms.
-- Do not perform connector reads merely to answer a capability question; use the preflight setup summary and any current session app/tool availability already visible in context.
+- Users of this plugin are not expected to know code or internal implementation details
+- Use simple, high-level language that communicates the key information needed about the work, not about what's happening under the hood. Don't narrate mechanical processes during the rollout.
+- These users are experts in their domain, and want information about why you made certain logical decisions, want to provide input to improve outputs and apply their taste, and want to learn enough about what's happening so they can reason about and trust the outputs.
+- These users want to be treated as intelligent collaborators who are in the driver seat for key decisions, you should work with them to ensure you're on the right track and giving them what they need.
 
-Use this default answer shape for broad orientation and help requests:
+### Dependencies
 
-```md
-Sales can help with:
-- Meeting prep and daily customer-meeting briefs
-- Follow-up packages after calls, demos, or discovery notes
-- Internal source-finding for customer questions and objections
-- Deal strategy, account prioritization, forecast review, and account-signal briefs
-- Competitive briefs, customer quote pulls, rep coaching, enrichment, and business cases
+Skills refer to source categories with placeholders such as `~~CRM`, `~~Calendar`, or `~~Meeting Transcripts`.
 
-Setup context:
-- {Only include when useful: source category readiness or gap plus practical impact}
+The configured apps and their categories live in this plugin's `.app.json`. Treat this as the canonical mapping for which apps can satisfy each category. Other discoverable apps in the user's environment, such as custom internal MCP connectors, can also satisfy a category when they credibly expose equivalent information.
 
-Good first prompts:
-- `@Sales prepare me for my next customer meeting.`
-- `@Sales follow up from my latest customer call.`
-- `@Sales prioritize my accounts for pipeline focus this week.`
+#### Category Resolution
+
+1. Identify the categories used by the selected workflow in its dependency categories section.
+2. Treat every listed category as useful but non-blocking by default. A category blocks the first output only when the focused skill explicitly marks it `[Blocking]`.
+3. A `[Blocking]` category is satisfied when either a suitable installed app is available or the user has already provided equivalent context. Do not request installation merely because the connector is absent when the needed information is already grounded in the conversation, pasted notes, links, or files.
+4. Check whether an installed app matches each category you plan to use. The initially surfaced app list is only a hint and is NEVER sufficient evidence that a provider is absent. Before making any negative availability claim, saying a connector is not installed, naming an installation gap, or offering an install, you MUST search the live/lazy tool registry for the provider name and credible category-equivalent providers. A live tool match is sufficient to treat that provider as installed and available for dependency resolution, even when it was omitted from the surfaced app list. If the provider is found but its tools are missing on the first discovery pass, recheck discovery once. Only after both checks fail may you describe it as unavailable. Do not infer readiness or absence from metadata, recommended-install lists, manifests, vendored skills, or the initially surfaced app list alone.
+5. Note that only one suitable app is needed to satisfy a category. Use additional apps when they materially improve coverage, freshness, confidence, or actionability.
+
+#### Missing Source Resolution
+
+- Apply this sequence whenever a material category selected for the current workflow has no verified usable source, whether the category is blocking or non-blocking:
+  1. If equivalent user-provided context already exists, proceed without requesting installation.
+  2. Before declaring the category unavailable, look up suitable installable providers through the runtime's install/connect surfaces, such as recommended plugins or an exposed app/connector listing or search. Use `.app.json` to identify candidate providers for the category, but do not treat a manifest entry alone as proof that a provider is installable or ready.
+  3. For a `[Blocking]` category, briefly explain why the source is needed, what evidence it would add, and that the first output cannot proceed without it. If a suitable provider is available, offer it through the install/connect UI before asking for fallback context. Prefer a user-named provider; otherwise recommend the best available match. When multiple options are materially different and no preference is known, offer a bounded choice.
+  4. For a `[Blocking]` category with no suitable provider, or when the install/connect attempt is declined or fails, offer the user a choice: check the installed plugin's page in the Plugins tab for other provider options, or provide the smallest useful uploaded or pasted context needed to proceed. Pause the first output until the source or equivalent context is available; otherwise return a clearly blocked result.
+  5. For a non-blocking category, do not open the install/connect UI, ask for fallback context, or pause before the first useful output. Continue with a safe partial output, state the practical limitation, and only after presenting that result offer the suitable provider or fallback context as an optional improvement.
+- Prefer canonical plugins over connectors only when choosing among installation options. Do not request a second app solely because it is more canonical when an installed app already satisfies the category.
+
+#### Source authority
+
+- Strongly prefer `~~CRM` for customer truth, account ownership, opportunity status, contacts, and pipeline context.
+- If CRM is unavailable, clearly state that customer information came from less authoritative sources.
+- Use web search only as fallback context or additional enrichment.
+- Do not use browser automation as a fallback for unavailable connectors.
+- When the Salesforce or Hubspot Connector is the CRM, use the appropriate vendored skills in this plugin.
+- When connected ZoomInfo is selected for Sales Intelligence work, load the vendored ZoomInfo skill before provider-specific search, enrichment, or recovery.
+- When connected Apollo is selected for Sales Intelligence work, load the vendored Apollo skill.
+
+### User Input Modalities
+
+You have multiple available methods of getting input from the user:
+- User input elicitation: You can ask the user to answer questions with a generic form, usually via the `ask_user_input()` function. Prefer this whenever there are questions with strong suggested defaults, where it would be faster to accept via a click than typing a response. Bias strongly to preferring this tool over a text-based question.
+- Plugin install elicitation: You can ask the user to install plugins, connectors or apps with a special UI, usually via the `request_plugin_install()` function.
+- Text: You can always ask the user questions via markdown in a chat context.
+
+Example
+```
+*thinking*
+{need CRM account truth and CRM is marked [Blocking]; Salesforce is available to install}
+{tell user: "Salesforce is needed to establish the account set and ownership, so I cannot produce the first ranking without it or equivalent account context."}
+{request_plugin_install(['Salesforce'])}
+
+{Email is useful but non-blocking; Gmail is available to install}
+{continue to the first useful output, state the email limitation, then offer Gmail as an optional next step}
+
+{need clarification between three valid options}
+{ask_user_input(['Option 1', 'Option 2', 'Option 3'])}
+
+{final answer to the user}
 ```
 
-### Routing And Skill Selection
+### Workflow Steps
 
-If several focused skills apply, sequence them in the order that creates the most useful seller workflow. For example, meeting prep may precede deal strategy, and customer-call follow-up may feed a forecast or account-intelligence update. Keep this index as a router; do not perform focused workflow logic here.
+Your goal is to provide the user with the most value with the least amount of mental load and burden. You should default to making assumptions to produce user value more quickly, but if there are questions that materially change the output, and help de-risk the downstream value of longer workflows, you should ask. This is also an opportunity to help the user discover additional value and next steps they might not have been aware of. Avoid dead-ends and always provide a short offer for a helpful next step given their intent.
 
-Before finalizing future Sales instruction edits, run `python3 plugins/sales/skills/user-context/scripts/validate_user_context_preflight.py` from the repository root. Treat a missing mandatory pre-answer gate in any `SKILL.md`, including helper skills, as an audit finding to fix before release.
+The offer for a next step should always append to any output formatting specified in a particular skill.
 
-Prefer examples that route to focused skills without extra setup, such as:
+Here is the default flow you should follow for each skill:
 
-```text
-@Sales prepare me for my next customer meeting.
-@Sales follow up from my latest customer call.
-@Sales prioritize my accounts for pipeline focus this week.
+#### 1. Resolve Dependencies and Clarify
+- Review the dependency categories listed in the skill. Treat unlabeled categories as useful but non-blocking. Resolve missing `[Blocking]` categories before the first output; defer non-blocking install offers and fallback requests until after the first useful output.
+- Do a quick context gathering pass to better understand the problem and constraints
+- If needed, ask the user to resolve any high-impact, high-uncertainty questions. Use the ask_user_input tool with a batch of questions. This must happen within the first 20s of the rollout. After these questions you should be clear to execute on the First Output.
+
+#### 2. Gather Context
+- After assessing user-provided context, start with an available category that owns the core source of truth, then attempt only additional available categories that can materially improve the selected artifact, confidence, or next action.
+- In an intermediate update message to the user, highlight which material dependencies are available that you'll try to use.
+- Aim for a balance of completeness and speed: broaden when the first pass is empty, thin, conflicting, or a decision depends on the missing evidence; stop once the artifact is grounded.
+- If a material dependency category isn't available, or a material search returned no useful context, communicate the practical limitation to the user.
+
+#### 3. First Output
+- After sufficient context has been gathered, provide the user with an output
+- Default to providing output in chat, but if the skill or user instruction prefers another output like html or a document, use that instead.
+- Remember to identify the likely underlying user goal behind the request and try to address that, as well as satisfying their object-level request.
+- Below are two common elements that should be used by default in all outputs.
+
+##### Limitations and Improvements
+
+The first output is "best effort" and tries to give the most useful response relative to the connectors and context available. In this output, you should give the user context on the strength of your answer and instruct how it can be improved through installing new connectors.
+
+Details:
+- Start with 1–2 sentences describing the answer’s strengths, grounding, and known gaps.
+- For available connectors with no relevant evidence, mention what was checked and what was or wasn't found.
+- For unresolved non-blocking categories, state the practical limitation and name a suitable provider as an optional improvement when one is available. Offer its install/connect UI only after the first output, normally in Next Steps.
+- For unresolved blocking categories, report whether a provider was offered, no suitable provider was found, or the install/connect attempt failed or was declined. Mention the plugin-page, pasted/uploaded-context, or IT fallback only after no suitable installable provider was found or the install/connect attempt failed or was declined.
+
+**Output Format**
+```
+## Confidence and Gaps
+
+This brief provides a solid orientation from the invite and shared notes, but it does not yet capture prior-call decisions, unresolved commitments, or authoritative account and opportunity context.
+
+Potentially helpful context:
+
+1. **[Category]:** [Provider] is available to install and could add [specific missing evidence].
+2. **[Category]:** No suitable installable provider was found, so [plugin-page, pasted/uploaded-context, or IT fallback] is the next path for [specific missing evidence].
 ```
 
-For follow-up messages such as "yes", "walk me through it", "what happened?", or "show the steps" immediately after a completed guided workflow offers an agent-journey walkthrough, route to `user-context` and use `../user-context/references/onboarding.md#agent-journey-walkthrough`. Explain the observable steps, tool/app calls, retrievals, source gaps, and artifact assembly at a beginner-friendly level without revealing hidden reasoning.
+##### 4. Next Steps
+- *Always* offer one clear next step to help the user get more value and discover useful adjacent functionality.
+- When the focused skill provides `Next Step Options`, choose the single most relevant transition from that list. Do not present the whole menu, offer an action already completed, or suggest an action that conflicts with the workflow's ownership or safety rules.
+- When the focused skill does not provide options, use your judgment. Some common fallback options:
+  - Install new connectors if they could materially improve output quality
+  - Iterate on and improve the output
+  - Create a document, presentation, spreadsheet, or html report
+  - Draft response(s) in Slack or Email to help with next steps
+  - Take another action in a relevant tool
+  - Set up an automation to follow up or refresh the output in the future
 
-# Plugin Purpose
+**Output Format**
 
-Sales provides portable, evidence-grounded sales workflows for account research, competitive intelligence, meeting prep, deal strategy, pipeline and forecast review, customer follow-up, product-feedback evidence, internal navigation, business case, and rep coaching. It uses active workflow source categories such as CRM, calendar, meeting notes provider, external customer messaging, internal messaging, and document store tools when they can reduce manual input; pasted notes, uploaded files, exports, or public research remain supported fallback and enrichment paths.
+```
+{other message outputs}
 
-# Skills
-
-## analyze-account-signals
-
-Build a single-account intelligence brief or ranked owner/watchlist summary from recent account signals. Route here for account views, account monitoring, "what changed with this customer?", or portfolio-watchlist requests. It is read-only and must not create tasks, post digests, or store schedule state.
-
-## build-competitive-brief
-
-Build multi-competitor competitive research, comparison matrices, and battlecard-style objection packages from user materials, optional connector-assisted research, and public evidence. Route here for vendor comparisons, market-landscape questions, competitive positioning, and objection preparation.
-
-## follow-up-after-call
-
-Turn a customer call transcript or grounded call notes into a seller-ready follow-up package with recap, next steps, follow-up email draft, CRM-ready note text, and internal recap draft. Route here after calls, discovery notes, demos, or transcript uploads.
-
-## enrich-company-and-contact-data
-
-Clean up sparse go-to-market inputs into sales-ready company lists, contact candidates, firmographic or technographic completion, segmentation, signal scans, and enrichment-backed comparison tables. Route here when the request is data-first rather than meeting, deal, forecast, narrative, or coaching-first. If the selected enrichment provider is ZoomInfo, also load `zoominfo` before provider-specific connector work.
-
-## plan-deal-strategy
-
-Build a post-discovery deal strategy pack with a deal map, buying committee map, procurement risk register, and prioritized next actions. Route here when the user needs to decide how to move an active deal forward from grounded deal evidence.
-
-## hubspot
-
-HubSpot connector guide for Sales workflows that use HubSpot as the selected `crm`. Route here only as a helper after another focused sales workflow has selected HubSpot, or when the user explicitly asks for Sales HubSpot CRM connector rules. Do not route here for non-HubSpot CRM use.
-
-## find-key-internal-sources
-
-Find the best internal experts, documents, and team-chat channels for a customer question, product topic, objection, implementation issue, account task, or other internal topic. Route here for "who knows about this?", "what should I read before answering this customer?", "where is the source of truth?", or "which internal channel/doc should I use?" sales-support requests.
-
-## sales-company-research
-
-Run explicit or scheduled Sales Company Research to discover durable internal resources, save high-confidence Sales plugin memory, and ask focused questions for missing links, access, or source-of-truth choices. Route here for company research, resource discovery, filling missing Sales context, recurring Sales Company Research automation runs, or broad questions about which company resources would materially improve future Sales workflows. Do not route ordinary customer questions or one-off owner/doc/channel lookup here; use `find-key-internal-sources` for those.
-
-## prepare-for-meeting
-
-Create concise customer meeting briefs, daily customer-meeting digests, and scheduled most-important meeting prep from invite context, prior interactions, account notes, likely objections, internal workstream context, and asset suggestions. Route here for upcoming customer meetings, daily customer-facing schedules, or recurring meeting prep automation runs that should prefer customer/account meetings when available and otherwise help with the day's most important qualifying meeting.
-
-## suggest-sales-next-step
-
-Run scheduled or manual Sales check-ins that summarize what the user has been doing with Sales, inspect timely calendar/source signals, and recommend one next Sales workflow to try, defaulting to an untried Sales workflow when no stronger context exists. Route here for recurring weekday sales check-in or daily check-in automation runs, manual "run my sales check-in" requests, plugin adoption reviews, or questions about how to get more value from Sales. Do not use this skill for ordinary sales artifacts; route those to the focused workflow that owns the artifact.
-
-## prioritize-accounts
-
-Prioritize rep-ready pipeline by ranking accounts, suppressing in-flight motion, selecting reachable contacts, and drafting planning-only action packages. Route here for "which accounts should I work now?", territory planning, pipeline creation, or ICP/account-list prioritization.
-
-## find-customer-quotes
-
-Retrieve theme-specific customer or prospect quotes from transcripts, call notes, or exported recordings with speaker-confidence and provenance rules. Route here for voice-of-customer quote pulls, theme validation, or product-friction evidence requests. If live transcript connectors are unavailable, use the skill's manual/export lane when the user supplies transcript or call-note material.
-
-## review-forecast
-
-Generate forecast reviews with risk analysis, recommendation posture, and change detection from CRM truth, account notes, and optional call or chat evidence. Route here for seller-book reviews, forecast risk checks, commit/pipeline hygiene, or deal-by-deal forecast recommendations.
-
-## user-context
-
-Preflight, manage, or answer from Sales plugin user context. Route here before Sales workflows to load saved context, and for direct remember, save, recall, inspect, setup, customization, context-maintenance, or approved Sales Company Research save requests. This skill owns Sales plugin-scoped user context and memory policy.
-
-## salesforce
-
-Salesforce connector guide for Sales workflows that use Salesforce as the selected `crm`. Route here only as a helper after another focused sales workflow has selected Salesforce, or when the user explicitly asks for Sales Salesforce CRM connector rules. Do not route here for non-Salesforce CRM use.
-
-## get-rep-call-feedback
-
-Compare one rep's call history against peer examples to extract repeatable best practices and evidence-backed coaching feedback. Route here for peer-benchmark coaching requests that name a target rep and peer set or ask to derive peer exemplars.
-
-## review-rep-call-trends
-
-Analyze one rep's recent calls over time to detect improvement, regression, and stable patterns with objective evidence and practical coaching actions. Route here for trend-oriented coaching, progress checks, or "how has this rep changed?" requests.
-
-## build-business-case
-
-Build customer-led business cases, ROI narratives, value models, executive summaries, customer-ready value stories, and follow-up question sets from uneven customer context, metrics, transcripts, notes, and public evidence. Route here when the user needs credible customer-value reasoning rather than generic positioning.
-
-## zoominfo
-
-ZoomInfo provider guide for Sales enrichment, company/contact research, lookalikes, contact recommendations, intent signals, and result-quality recovery. Route here only as a helper after `enrich-company-and-contact-data` or another focused workflow has selected ZoomInfo, or when the user explicitly asks for Sales ZoomInfo connector rules.
+Anything you'd change, or would you like me to [single most relevant next step]?
+```

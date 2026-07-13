@@ -1,47 +1,142 @@
 ---
 name: hubspot
-description: HubSpot CRM connector guide for Sales workflows that use HubSpot for CRM reads, drafts, notes, or proposed record changes.
+description: Use only when a focused Sales workflow has selected a connected HubSpot CRM, or the user explicitly asks for HubSpot guidance, reads, drafts, notes, or reviewed record changes. Do not use when another CRM is authoritative.
 ---
 
 # HubSpot User Guide
 
-Use this as the HubSpot-specific user guide whenever the user or workflow is using HubSpot as the CRM connector, including drafting HubSpot-backed updates, summaries, notes, or proposed record changes. Keep the surrounding workflow skill authoritative for the sales task itself; this guide adds HubSpot-specific access checks, object lookup patterns, pagination, URLs, and write safety.
+Prepare trustworthy HubSpot-backed context or a safely reviewed HubSpot action while keeping the surrounding Sales workflow authoritative for the business task.
 
-Do not use this guide when the workflow uses another CRM connector or no CRM connector.
+## Common Skill Instructions
 
-## Skill Configuration
+MANDATORY: If not already in context, read and adhere closely to plugins/sales/skills/index/SKILL.md## Cross-Skill Best Practices.
 
-### User Context
+## HubSpot Operation Ranking
 
-Mandatory pre-answer gate: Invoke `sales:user-context` in preflight mode by loading `[$sales:user-context](../user-context/SKILL.md)` and running its preflight script before answering, searching connectors, retrieving evidence, or drafting output. Do not look for a callable MCP tool named `sales:user-context`. Use the returned `sales_preflight` envelope as authoritative for saved context, source-category mapping, final obligations, and conditional guidance. Do not read or reinterpret raw Sales state files unless preflight fails, local shell access is unavailable, or the user explicitly asks for raw state inspection.
+Use this priority order when the requested HubSpot job or record is ambiguous.
 
-Use returned user context as lookup hints and drafting guidance. Always verify HubSpot object, property, and enum metadata before querying or writing; saved user context does not replace `get_user_details`, `search_properties`, `get_properties`, or write-safety confirmation.
+1. Explicit user request, named record, HubSpot ID, company, deal, contact, ticket, or stated action
+2. Read-only CRM context needed by the active Sales workflow
+3. Exact record or a high-confidence candidate resolved from the user's words and business context
+4. The smallest property set, associations, activity context, or page of results that answers the request
+5. A reviewed draft of proposed HubSpot changes
+6. An explicitly approved, supported HubSpot write followed by verification
 
-### Audience And Language
+Do not silently pick among plausible records, broaden a read into a write, or treat clarification as write approval.
 
-Write for Sales users, not plugin maintainers. This applies to final answers, setup/status readbacks, failure explanations, tool preambles, and mid-turn progress narration.
+## Key Dependency Categories
 
-Translate implementation work into practical Sales impact: what Sales is checking, setting up, saving, or preparing, and why it matters. Avoid implementation terms such as preflight, state file, cache, raw connector id, heartbeat, targetThreadId, schema, API, runtime, metadata, and provider taxonomy unless the user asks for debugging details.
+These are particularly important for this workflow; use your best judgment to potentially include other data sources to improve quality.
 
-### Source Links
+- ~~CRM, specifically the exposed HubSpot connector, for HubSpot-backed identity, records, properties, associations, links, and approved writes
+- The parent Sales workflow for Calendar, Meeting Transcripts, Email, Internal Messaging, Knowledge & Files, or Sales Intelligence context that HubSpot does not own
+- User-provided record IDs, names, exports, property values, and business context when connector access is unavailable or a record needs disambiguation
 
-When referencing sources inline, prefer clickable Markdown links over plain bracket labels whenever the source exposes a useful URL. Use the source title, record name, channel/thread, or meeting/date as the link text, for example a clickable Markdown link whose visible text is `Meeting notes: May 19` or `Slack thread: May 15-21`. Use plain text labels only when no useful URL or stable connector-visible link is available, and say `(no useful link available)` when that absence matters.
+If HubSpot is missing, unavailable, stale, ambiguous, or limited by the exposed connector surface, say so and label the answer as not HubSpot-backed.
 
-## Rules
+## Workflow Guidance
 
-1. Call `get_user_details` first; check object read/write availability.
-2. Clarify scope: object type, owner/team, pipeline, timeframe, stage, and whether writes are requested.
-3. Use `search_properties` for fields, max 5 `keywords`; use `get_properties` for enum values.
-4. Use `search_crm_objects` for records, counts, filters, pagination, and associations; use `get_crm_objects` for known IDs. Do not use deprecated `search` or `fetch`.
-5. Include clickable HubSpot URLs with UTM params for returned records. State filters, totals, pagination, and whether analysis is sampled.
+These HubSpot-specific steps override the default workflow in the index skill.
 
-## Writes
+- 1. Resolve access and target
+    - Use get_user_details first to confirm the connected portal and exposed object read/write availability.
+    - Resolve whether the user wants a read, a draft, or an approved write; identify object type, owner or team, pipeline, timeframe, stage, and exact record when those affect the answer.
+    - For an ambiguous record, do the smallest bounded candidate lookup and ask the user to choose before using it for a summary or write.
+- 2. Discover properties and records
+    - Use search_properties with at most five focused keywords when fields are uncertain; use get_properties to confirm enum values and writable properties.
+    - Use search_crm_objects for search, counts, filters, pagination, and associations. Use get_crm_objects for known IDs. Do not use deprecated search or fetch.
+    - Retrieve only the properties and associations that affect the sales decision. State filters, totals, page or sample limits, and whether analysis is sampled.
+- 3. Draft, approve, and verify
+    - For proposed changes, show an exact field-level draft before calling manage_crm_objects.
+    - Write only after the user explicitly approves the exact reviewed change or batch. Batch at most 10 objects and confirm associations separately.
+    - A reviewed-batch approval applies only to that exact batch; never offer a blanket confirmation bypass.
+    - Inspect the write response and verify with a narrow read when the response does not prove the outcome.
 
-Before `manage_crm_objects`, show exact proposed changes and get approval:
+## HubSpot Rules
 
-| Object Type | ID | Property | Current Value | New Value |
-|---|---:|---|---|---|
+- Prefer exact IDs, domains, emails, and full names plus company over vague name-only matching.
+- Before querying or writing with a property or enum, confirm property labels, internal names, enum values, and writeability; do not guess them.
+- Keep HubSpot as CRM truth for HubSpot-owned account, contact, deal, ticket, owner, pipeline, and activity facts. Do not let enrichment or web context overwrite CRM truth.
+- Include clickable connector-returned or trusted HubSpot record URLs with UTM parameters when available.
+- Do not write inferred data, overwrite user-entered context without clear consent, or mutate an association without explicit approval.
+- Do not imply support for objects, properties, pagination behavior, bulk sizes, or writes that the live connector does not expose.
 
-For repeated writes, the user may approve a specific reviewed batch after seeing the exact proposed changes. Do not offer a blanket confirmation bypass for the chat.
+## Connector Boundary
 
-Batch at most 10 objects. Confirm associations explicitly. Do not write inferred data or overwrite user-entered context without clear consent.
+Use only the HubSpot surfaces that are actually exposed:
+
+- Identity and access: get_user_details
+- Property discovery: search_properties, get_properties
+- Record search and reads: search_crm_objects, get_crm_objects
+- Reviewed writes: manage_crm_objects
+
+For unsupported broad exports, delete, merge, dedupe, arbitrary automation, or unexposed object operations, state the missing surface and offer a narrower read, a draft, or another approved source.
+
+## Modes
+
+### 1. HubSpot Read
+
+- Use for company, deal, contact, ticket, owner, activity, property, or association context.
+- Resolve the target, retrieve only decision-relevant fields, and call out ambiguity or gaps.
+
+#### Output Format
+
+    # [HubSpot Record Or Context]
+
+    ## Summary
+
+    - [Most important CRM fact with trusted link]
+    - [Current deal, company, contact, activity, or association signal]
+    - [Risk, missing property, ambiguity, or source gap]
+
+    ---
+
+    {Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+    {Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}
+
+### 2. HubSpot Update Draft
+
+- Use when the user asks to prepare a note, property change, association, create, or update but has not approved the write.
+- Keep current and proposed values separate and identify the exact target.
+
+#### Output Format
+
+    # Proposed HubSpot Update
+
+    **Target:** [Record name, type, and trusted link or ID]
+
+    | Property / Association | Current Value | Proposed Value | Reason / Source |
+    | --- | --- | --- | --- |
+    | [Label] | [Current or Unknown] | [Proposed] | [Grounded reason + link] |
+
+    ## Before I Write
+
+    - [Missing input, association confirmation, validation risk, or approval needed]
+
+    ---
+
+    {Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+    {Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}
+
+### 3. Approved HubSpot Write
+
+- Use only after explicit approval for the exact reviewed object or batch.
+- Verify before reporting completion when the write response is inconclusive.
+
+#### Output Format
+
+    # HubSpot Updated
+
+    **Record:** [Name, type, and trusted link or ID]
+
+    - **Changed:** [Property or association]
+    - **Result:** [Verified outcome]
+    - **Not changed:** [Unsupported or skipped item]
+
+    ---
+
+    {Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+    {Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}

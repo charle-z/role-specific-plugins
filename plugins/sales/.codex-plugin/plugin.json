@@ -1,7 +1,7 @@
 {
   "name": "sales",
-  "version": "0.2.16",
-  "description": "Practical sales workflows that help sellers prepare meetings, follow up after calls, plan deals, review pipeline, find internal answers, and reuse saved preferences.",
+  "version": "1.0.8",
+  "description": "Practical sales workflows for sellers. Prepare for meetings, follow up after calls, prioritize accounts, analyze signals, plan deals, build business cases, review forecasts, find customer evidence, coach reps, enrich data, and work from CRM context.",
   "author": {
     "name": "OpenAI"
   },
@@ -10,23 +10,37 @@
   "license": "MIT",
   "keywords": [
     "sales",
-    "competitive-brief",
+    "crm",
+    "hubspot",
+    "zoominfo",
+    "outreach",
+    "gmail",
+    "outlook",
+    "microsoft teams",
+    "sales intelligence",
     "account-intelligence",
     "meeting-preparation",
-    "product-feedback",
+    "call-follow-up",
+    "competitive-brief",
+    "deal-strategy",
+    "business-case",
     "forecasting",
+    "customer-quotes",
+    "sales-coaching",
     "pipeline",
-    "coaching",
-    "follow-up"
+    "account-prioritization",
+    "company-enrichment",
+    "salesforce",
+    "guided-flow"
   ],
   "skills": "./skills/",
   "apps": "./.app.json",
   "interface": {
     "displayName": "Sales",
-    "shortDescription": "Prepare sales work faster",
-    "longDescription": "Bring customer context into the work that moves deals forward. Find high-priority accounts and signals, prepare for customer meetings, complete follow-ups, propose customer-record updates, build close plans, and review deals at risk.\n\nStart with CRM details, call notes, docs, messages, calendar events, uploaded files, or pasted context. Connect tools like Salesforce, HubSpot, Slack, Outreach, Clay, Rox, and Actively to bring scattered account context together and turn the available evidence into practical next steps.",
+    "shortDescription": "Practical workflows for sellers",
+    "longDescription": "Bring customer context into the work that moves deals forward. Prepare for customer meetings, follow up after calls, understand account signals, prioritize accounts, plan active deals, build business cases and competitive briefs, review forecasts, find customer quotes and internal experts, coach reps from calls, and enrich company and contact data.\n\nStart with CRM details, calendar events, call notes, docs, messages, uploaded files, account lists, or pasted context. Connect tools like Salesforce, HubSpot, Slack, Outreach, Clay, Rox, and Actively to bring scattered context together and turn the available evidence into practical next steps.",
     "developerName": "OpenAI",
-    "category": "Business",
+    "category": "Business & Operations",
     "capabilities": [
       "Interactive",
       "Read",
@@ -36,9 +50,9 @@
     "privacyPolicyURL": "https://openai.com/policies/row-privacy-policy/",
     "termsOfServiceURL": "https://openai.com/policies/row-terms-of-use/",
     "defaultPrompt": [
-      "Let's get started",
-      "Prep me for my next customer meeting",
-      "Help me prioritize my accounts"
+      "What can you do?",
+      "Prepare me for my next important customer meeting. Give me the context, likely blockers, and questions I should ask.",
+      "Which accounts should I focus on this week? Rank them, explain why, and recommend the next move for each."
     ],
     "brandColor": "#FB6A22",
     "composerIcon": "./assets/codex-sales-plugin-composer-icon.svg",

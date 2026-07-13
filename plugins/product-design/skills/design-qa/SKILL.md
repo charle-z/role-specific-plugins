@@ -30,6 +30,17 @@ Do not write the QA review from memory, code, or file paths alone. Open or captu
 
 Do not pretend separate image views are side-by-side comparison. Put the source image and the implementation screenshot together in the same comparison input, then judge the visible differences from that combined input.
 
+Design QA is an iteration loop. The first comparison may pass only when it finds no actionable P0/P1/P2 differences and no visual fixes are made in response.
+
+When a comparison finds any P0/P1/P2 issue:
+
+- Record the finding and keep the current result blocked.
+- Apply the fix.
+- Capture the revised implementation at the same viewport and state.
+- Compare the revised capture against the source again.
+
+A later pass must identify the earlier findings, the fixes made, and the post-fix visual evidence. Build, dependency, lint, deployment, and preview troubleshooting do not count as design-QA iterations.
+
 1. Identify the comparison target.
    - Determine the source design: Figma node, image, design board, screenshot, spec, or mockup.
    - Determine the implementation: local URL, deployed URL, app screen, component, screenshot, or code-rendered view.
@@ -38,7 +49,7 @@ Do not pretend separate image views are side-by-side comparison. Put the source 
 
 2. Capture evidence.
    - For Figma, use design context and screenshot tools when available.
-   - For web/app implementations, open the target in a browser and capture screenshots at the intended viewport.
+   - For web/app implementations, follow the Browser Choice rule in [index](../index/SKILL.md#browser-choice). In ChatGPT Work Mode, follow the active build skill's "Previewing prototypes in ChatGPT Work Mode" section before opening a local implementation. Then capture screenshots at the intended viewport.
    - Capture additional states when relevant: mobile/desktop, hover/focus/active, empty/loading/error, dark/light, and key responsive breakpoints.
    - Save paths or URLs for screenshots when available so findings can cite evidence.
    - Capturing screenshots is not enough. Put the source image and the implementation screenshot together in the same comparison input before judging.
@@ -87,6 +98,8 @@ Every QA report must explicitly evaluate these surfaces:
 - `P2`: Moderate visual drift, inconsistent state, responsive issue, or fixable polish gap.
 - `P3`: Minor refinement that improves fidelity but does not block acceptance.
 
+Treat viewport overflow that hides persistent app controls, and mismatches that materially change above-the-fold content, major-region proportions, text wrapping, or interface density, as P2 or higher.
+
 ## Output Format
 
 Use this structure unless the user asks otherwise:
@@ -122,8 +135,10 @@ When this skill is used before handoff, save the latest QA report as project-roo
 - full-view comparison evidence
 - focused region comparison evidence, or why it was not needed
 - findings
-- patches made since the previous QA pass
+- comparison history for every P0/P1/P2 iteration: earlier findings, fixes made, and post-fix visual evidence
 - final result
+
+For ChatGPT Work Mode builds, `design-qa.md` must include the browser-rendered implementation screenshot, viewport, primary interactions tested, console errors checked, and final result. If browser-rendered evidence is missing, `final result` is `blocked`.
 
 `final result` must be exactly `passed` or `blocked`.
 

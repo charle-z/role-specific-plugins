@@ -1,7 +1,7 @@
-# `meeting_notes` connector playbook (rep benchmarking)
+# ~~Meeting Transcripts playbook (rep benchmarking)
 
 ## Tools
-Use the selected `meeting_notes` App's search and fetch functions:
+Use the selected ~~Meeting Transcripts App's search and fetch functions:
 - search with `query`, optional company/account filters, `date_range`, `limit`, and `score_threshold`
 - fetch by connector-specific id from search results
 

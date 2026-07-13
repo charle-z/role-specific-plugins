@@ -2,6 +2,8 @@
 
 Use this when the dashboard should be rendered by the Data Analytics MCP app in Codex using `render_artifact`. This is the first-party dashboard surface for bounded, reviewed dashboard payloads that should stay inside the Codex/MCP Apps handoff instead of being created in an external BI platform.
 
+Do not select this specification when `surface = chatgpt_web` and `mode = work_mode` are both positively identified. Also do not select it when `mode = work_mode` is positive and `surface` is unknown or otherwise not positively `codex_desktop`. Use the HTML dashboard specification or a user-selected connected BI destination instead.
+
 ## When To Use
 
 - The user wants an in-Codex dashboard, quick analytical artifact, prototype, or source-backed dashboard readout without creating a Tableau, Databricks, Looker, Power BI, or other BI-platform asset.
@@ -17,12 +19,14 @@ Prefer a BI platform dashboard for broadly shared production dashboards, third-p
 - Follow the current `render_artifact` and `validate_artifact` MCP chart schema instead of duplicating chart-field rules here. Validate the manifest before rendering.
 - Validate the complete manifest and snapshot first with `validate_artifact`, fix validator errors there, and make only one visible `render_artifact` call after validation succeeds. If visible render fails after validation, record the blocker instead of repeated visible retries.
 - Default to built-in artifact blocks for dashboards: `metric-strip`, `chart`, `table`, and `markdown`. Use these native blocks for ordinary KPI strips, trends, bars, rankings, tables, caveats, source notes, and dashboard structure even when custom HTML would be faster to hand-author.
+- Every card referenced by a `metric-strip` must attach canonical provenance through inline `source` or `sourceId`, just like native charts and tables, so its data-source action always opens a complete query and evidence view.
 - Pair it with a compact bounded snapshot containing reviewed aggregate datasets. Avoid row-level payloads unless a small detail table is essential. Use the canonical snapshot shape: `snapshot.datasets` is an object keyed by dataset id, and each value is a plain array of reviewed row objects. Do not put `{columns, rows}` table objects inside `snapshot.datasets`; keep column metadata in `manifest.tables[].columns`.
 - If a required source is blocked by permissions, set the snapshot status to `partial` or `blocked`, populate `snapshot.accessIssues`, put a clean access notice above the dashboard header, and state the exact missing role/table. Do not bury the blocker inside a chart card.
 - Keep the shared hierarchy: hero metrics first, then trend, then diagnosis, then detail.
 - Render the editable dashboard title from `manifest.title`, the last-refresh date, and a Refresh action in the top bar. Treat the top-bar title as canonical.
 - Keep snapshot freshness quiet in the top bar. Render a compact status pill only when the snapshot is fixture, partial, or blocked.
-- KPI cards render as individual cards from one `metrics[]` list. The first metric renders as the large value; later metrics render as labeled secondary badges. Each metric declares `label`, `field`, optional `format`, and `signed: true` for signed changes.
+- KPI cards render as individual cards from one `metrics[]` list. The first metric is the card's only headline and renders as the large value. Later metrics may render as concise badges only when they compare that same headline with its prior period, target, or delta. Each metric declares `label`, `field`, optional `format`, and `signed: true` for signed changes.
+- Choose all and only decision-relevant hero metrics. Do not pad or truncate a strip to reach four cards—or any preferred count. Each card must answer one distinct monitoring or decision question; use supporting badges only for direct comparison context, and split independent secondary metrics into their own cards, charts, narrative, semantic strips, or a detail table. Keep card labels and badge labels concise enough to remain on one line. Odd card counts are valid; the renderer balances rows responsively.
 - When a metric label is not self-defining, include a card description or nearby markdown that explains the metric in reader terms, and include the exact calculation in `source.query.metric_definitions`.
 - Back every chart with a dataset that remains useful beyond the visible chart encoding when safe reviewed context is available. Retain useful dimensions, time/cohort fields, candidate grouping columns, numerators, denominators, benchmarks, ranks, comparison-period values, and adjacent measures so the expanded table supports inspection, filtering, and realistic chart switching.
 - Percent values rendered with `format: "percent"` or `valueFormat: "percent"` must use the same numeric scale consistently in the provided data. Use decimal rates for computed numeric fields, such as `0.149` for `14.9%`, or pass preformatted reader-facing strings where exact display text matters.
@@ -61,7 +65,7 @@ Prefer a BI platform dashboard for broadly shared production dashboards, third-p
 - Use full-space blue-shade cell heatmaps when a dense row-by-column comparison is needed: right-aligned row labels on the left, adaptive column labels below the grid, and hover tooltips for exact values.
 - For complex custom chart types such as heatmaps, leaderboards, funnels, waterfalls, and box plots, let marks stretch when there are only a few rows; when marks would fall below their readable minimum, grow the chart block height instead of introducing vertical scrolling inside the chart body.
 - Let Recharts v3 auto-size Y-axis gutters from formatted visible tick labels with `width="auto"`; use explicit nice ticks when the data domain needs stable labels.
-- When a non-stacked multi-series chart omits explicit colors, use the fallback order blue, purple, green, neutral, orange, yellow, pink, red. Stacked bars use the generated app's blue/purple token-shade fallback set.
+- When a non-stacked multi-series chart omits explicit colors, use the runtime fallback order blue, orange, green, purple, red, pink, yellow, neutral. Stacked bars use the generated app's blue/purple token-shade fallback set.
 - Disable chart intro animation when deterministic screenshots or hosted previews matter.
 
 ## Handoff

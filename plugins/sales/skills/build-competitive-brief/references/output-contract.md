@@ -26,6 +26,8 @@ If `mode=objections`, focus the output on objection handling and proof points.
 
 If `mode=account_overlay`, add one section called `Account Implications` and clearly label any directional inference.
 
+The default delivery is a self-contained HTML artifact plus a concise chat readout. Use the same section contract in chat or Markdown only when the user explicitly asks for that mode.
+
 Use placeholder examples when showing structure:
 
 - seller: `MyCompany`

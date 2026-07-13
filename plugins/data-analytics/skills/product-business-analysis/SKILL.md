@@ -1,7 +1,11 @@
 ---
 name: product-business-analysis
-description: "Analyze product or business data to inform decisions with focused quantitative work, decision-relevant context, measurable opportunities, and a clear recommendation. Use when the user needs data-backed evidence to choose a direction, prioritize an opportunity, evaluate a change, understand implications, or decide what to do next; not for routine KPI reporting, metric diagnostics, or dashboard building."
+description: "Analyze product or business data to support a decision or recommendation. Use when a decision depends on metric-backed evidence, such as choosing a direction, prioritizing an opportunity, evaluating a change, segmenting users, sizing tradeoffs, or deciding what to do next."
 ---
+
+## Related Skills
+
+Use $metric-diagnostics when the recommendation depends on explaining a metric movement, anomaly, gap, or discrepancy.
 
 # Product And Business Analysis
 
@@ -9,19 +13,12 @@ Use this skill to answer product or business questions with data-backed evidence
 
 ## Skill Configuration
 
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
-
 ### Source Discovery And Verification
 
-Use the relevant semantic layer first when one exists. Treat it as the starting map for candidate metrics, tables, joins, filters, caveats, source precedence, and known conflicts.
+Use the relevant semantic layer as a starting map, not a boundary.
 
-Do not stop at the semantic layer or the first plausible source. Search across the relevant available company source lanes, including structured data or data warehouses, dashboards, company docs, team communication, notebooks, code repositories, and other connected company knowledge or data that could change the answer.
-
-For source-backed analytical work, always verify through live source reads. When the answer depends on data, run fresh data queries against the available structured-data sources before drawing conclusions, even when the semantic layer already names likely tables or definitions.
-
-Use the combined evidence to determine which source controls the answer, note meaningful disagreements, and state why the selected source is authoritative.
+1. **Explore all possible sources.** Search every connected or provided source that could contain task-relevant data or change the interpretation. Within each structured-data source, run fresh catalog or metadata discovery for relevant schemas, datasets, tables, views, models, and metrics. Known sources, tables, dashboards, and semantic mappings are starting points, not stopping points.
+2. **Compare duplicates and conflicts.** When sources overlap or disagree, compare ownership, freshness, definition, grain, coverage, and directness. Use the best authoritative source, or combine complementary sources when needed. Note material conflicts, explain why the selected source or sources control the answer, and verify selected data through live reads before concluding.
 
 ### Source Access Guardrail
 
@@ -119,7 +116,7 @@ If evidence conflicts, say so directly and explain which interpretation is bette
 
 ### 6. Hand Off The Recommendation
 
-End by handing the decision-ready recommendation to $build-report. This workflow owns the analytical conclusion; $build-report owns the reader-facing structure, visuals, evidence placement, and delivery surface.
+End by handing the decision-ready recommendation to $build-report unless the user explicitly requests an inline, chat-only, brief/no-artifact answer, asks not to create a report/file/artifact, or selects another primary artifact. This handoff is mandatory when no explicit human waiver was given; do not infer a waiver because the user asked a direct question or did not use the word "report". This workflow owns the analytical conclusion; $build-report owns the reader-facing structure, visuals, evidence placement, and delivery surface.
 
 Before handoff, make the recommendation explicit:
 

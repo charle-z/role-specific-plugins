@@ -22,6 +22,8 @@ Use this skill when the user asks to:
 
 - Refer to the Plugin router [$index](../index/SKILL.md) before proceeding.
 - Follow [$critical-overrides](../../references/critical-overrides.md).
+- Before offering onboarding or saving context for future conversations, confirm that local shell access is available, `$CODEX_HOME` can be resolved, and `$CODEX_HOME/state/plugins/product-design/` exists and is writable or can be created in a writable parent directory. If `user-context.md` already exists, confirm that it is writable too.
+- If any check cannot be completed or fails, persistent context is unavailable. Do not offer saved-context onboarding or claim that new context was saved for future conversations. If the user asks to save something, explain that it can be used in the current conversation but not saved for future conversations.
 
 ## Saved User Context
 

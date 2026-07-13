@@ -1,17 +1,17 @@
 ---
 name: gather-business-context
-description: "Gather business context from connected or provided sources so downstream analysis starts with the right framing. Use before deeper analysis when an analytical question depends on context the prompt does not provide, for example to understand what a metric means, how the work is defined, what changed recently, or which sources should be checked."
+description: "Gather business context from connected or provided sources so downstream analysis starts with the right framing. Use when an analytical question depends on missing context, such as what a metric means, what changed recently, or which sources should be checked. If the same prompt asks for diagnosis, recommendation, or a deliverable, gather context first and continue to the focused skill."
 ---
+
+## Boundary
+
+Use this skill to gather framing context, not to complete the downstream analysis.
+
+If the same request also asks for a diagnosis, recommendation, dashboard, report, or other analytical deliverable, return only the context needed for that next step and continue with the appropriate focused skill, such as $metric-diagnostics, $product-business-analysis, $build-dashboard, or $build-report.
 
 # Gather Business Context
 
 Use this skill to collect the business context needed to understand an analytical question before doing deeper work. Focus on what the topic is, why it matters, what changed or is being decided, who or what source is closest to the work, and which definitions or artifacts should frame the analysis. This is a retrieval and extraction skill: gather enough context to set up the next step, not a final report, root-cause analysis, or broad background scan. Skip it when the prompt already provides the needed context or the task is fully self-contained.
-
-## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
 
 ## Workflow
 
@@ -27,9 +27,8 @@ Start broad enough to avoid missing relevant context. If too much comes back and
 
 ### 3. Search From Discovery Points Toward Authoritative Artifacts
 
-Before searching deeply, identify the enabled or provided source families likely to contain useful context for the task. Start from saved user-context and semantic-layer anchors when they exist, then make a focused pass across the relevant connected or provided apps when they can establish current definitions, decisions, source-of-truth context, or useful verification. Do not search every connector by default, but do not stop after one good source when another likely source could add useful detail.
-
-Within those source families, start where the task is most likely to reveal useful context or links, such as a source named by the user, a report or dashboard, a planning document, a work tracker, or an owner discussion. Follow linked artifacts instead of stopping at the first mention, and use discovery sources to move toward artifacts closer to what was decided, defined, put into practice, or measured.
+1. **Explore all possible sources.** Search every enabled or provided source family that could contain useful context or task-relevant data. Within each structured-data source, run fresh catalog or metadata discovery for relevant schemas, datasets, tables, views, models, and metrics. User-named sources, known tables, dashboards, and semantic-layer anchors are starting points, not stopping points.
+2. **Compare duplicates and conflicts.** When sources overlap or disagree, compare authority, freshness, definition, scope, and directness. Prefer artifacts closest to what was decided, defined, implemented, or measured; follow linked evidence when useful. Note material conflicts and explain which source or combination should guide downstream analysis.
 
 ### 4. Extract Only Decision-Shaping Context
 

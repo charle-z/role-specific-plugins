@@ -259,7 +259,7 @@ def build_preflight_checks(
                 stats = chart.get("render_preflight_stats") or inspect_png(
                     image_path,
                     expected_chart_colors(chart),
-                    exact_color_scan=chart.get("kind") == "two_col_table_grid",
+                    exact_color_scan=chart.get("kind") in {"two_col_table_grid", "svg"},
                 )
                 color_hits = stats.get("expected_color_hits", {})
                 expected_colors_present = not color_hits or any(

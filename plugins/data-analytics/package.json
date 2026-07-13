@@ -1,13 +1,14 @@
 {
   "name": "datascience-mcp-widgets",
-  "version": "0.1.34",
+  "version": "0.2.6",
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "npm run build:chart && npm run build:table && npm run build:artifact && npm run normalize:assets",
+    "build": "npm run build:chart && npm run build:table && npm run build:artifact && npm run build:html-runtime && npm run normalize:assets",
     "build:artifact": "cross-env INPUT=datascience-artifact-widget.html vite build",
     "build:chart": "cross-env INPUT=datascience-chart-widget.html vite build",
     "build:table": "cross-env INPUT=datascience-table-widget.html vite build",
+    "build:html-runtime": "cross-env INPUT=html-report-runtime.html vite build",
     "dev": "concurrently \"npm:dev:chart\" \"npm:dev:table\" \"npm:dev:artifact\"",
     "dev:artifact": "cross-env INPUT=datascience-artifact-widget.html vite build --watch",
     "dev:chart": "cross-env INPUT=datascience-chart-widget.html vite build --watch",

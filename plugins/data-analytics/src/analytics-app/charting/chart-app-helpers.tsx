@@ -318,6 +318,25 @@ function shouldKeepSignedBarAsSingleSeries(chart, rows, colorField) {
   return observed;
 }
 
+function isHorizontalBarChart(chart) {
+  return (
+    chart.type === "horizontalBar" ||
+    chart.type === "horizontalStackedBar" ||
+    chart.type === "horizontalStackedBar100" ||
+    (chart.type === "bar" && chart.settings?.orientation === "horizontal")
+  );
+}
+
+function axisTitlesForEncodedChart(chart, xField, yField) {
+  const horizontal = isHorizontalBarChart(chart);
+  const encodedXAxisTitle = chartEncodingAxisTitle(chart, "x", xField);
+  const encodedYAxisTitle = chartEncodingAxisTitle(chart, "y", yField);
+  return {
+    xAxisTitle: chart.xAxisTitle ?? (horizontal ? encodedYAxisTitle : encodedXAxisTitle),
+    yAxisTitle: chart.yAxisTitle ?? (horizontal ? encodedXAxisTitle : encodedYAxisTitle),
+  };
+}
+
 export function rechartsChartFromEncodedSpec(chart, rows) {
   if (!chartHasEncodingSpec(chart)) return { chart, rows };
   const xField = chartEncodingField(chart, "x");
@@ -326,12 +345,15 @@ export function rechartsChartFromEncodedSpec(chart, rows) {
   const colorField = chartEncodingField(chart, "color");
   const lineStyleField = chartEncodingField(chart, "lineStyle");
   if (yFields.length) {
+    const horizontal = isHorizontalBarChart(chart);
+    const xAxisTitle = chartEncodingAxisTitle(chart, "x", xField);
+    const yAxisTitle = chartEncodingAxisTitle(chart, "y", "Value");
     return {
       chart: {
         ...chart,
         xField,
-        xAxisTitle: chart.xAxisTitle ?? chartEncodingAxisTitle(chart, "x", xField),
-        yAxisTitle: chart.yAxisTitle ?? chartEncodingAxisTitle(chart, "y", "Value"),
+        xAxisTitle: chart.xAxisTitle ?? (horizontal ? yAxisTitle : xAxisTitle),
+        yAxisTitle: chart.yAxisTitle ?? (horizontal ? xAxisTitle : yAxisTitle),
         series: yFields.map((field) => ({ field, label: field, semanticRole: inferredSeriesRole(field) })),
       },
       rows,
@@ -340,12 +362,12 @@ export function rechartsChartFromEncodedSpec(chart, rows) {
   if (!yField) return { chart, rows };
   if (chart.type === "funnel" || !colorField || shouldKeepSignedBarAsSingleSeries(chart, rows, colorField)) {
     const lineStyle = rowLineStyle(rows.find((row) => rowLineStyle(row, lineStyleField)), lineStyleField);
+    const axisTitles = axisTitlesForEncodedChart(chart, xField, yField);
     return {
       chart: {
         ...chart,
         xField,
-        xAxisTitle: chart.xAxisTitle ?? chartEncodingAxisTitle(chart, "x", xField),
-        yAxisTitle: chart.yAxisTitle ?? chartEncodingAxisTitle(chart, "y", yField),
+        ...axisTitles,
         series: [{ field: yField, label: chartEncodingLabel(chart, "y", yField), lineStyle, semanticRole: inferredSeriesRole(chartEncodingLabel(chart, "y", yField)) }],
       },
       rows,
@@ -363,12 +385,12 @@ export function rechartsChartFromEncodedSpec(chart, rows) {
   }
   const seriesFields = new Map(seriesValues.map((value, index) => [value, syntheticSeriesField(value, index)]));
   if (chart.type === "scatter") {
+    const axisTitles = axisTitlesForEncodedChart(chart, xField, yField);
     return {
       chart: {
         ...chart,
         xField,
-        xAxisTitle: chart.xAxisTitle ?? chartEncodingAxisTitle(chart, "x", xField),
-        yAxisTitle: chart.yAxisTitle ?? chartEncodingAxisTitle(chart, "y", yField),
+        ...axisTitles,
         series: seriesValues.map((value) => ({ field: seriesFields.get(value), label: value, lineStyle: seriesLineStyles.get(value), semanticRole: inferredSeriesRole(value) })),
       },
       rows: rows.map((row) => {
@@ -385,12 +407,12 @@ export function rechartsChartFromEncodedSpec(chart, rows) {
     const seriesField = seriesFields.get(String(row[colorField] ?? ""));
     if (seriesField) rowsByX.get(xKey)[seriesField] = row[yField];
   }
+  const axisTitles = axisTitlesForEncodedChart(chart, xField, yField);
   return {
     chart: {
       ...chart,
       xField,
-      xAxisTitle: chart.xAxisTitle ?? chartEncodingAxisTitle(chart, "x", xField),
-      yAxisTitle: chart.yAxisTitle ?? chartEncodingAxisTitle(chart, "y", yField),
+      ...axisTitles,
       series: seriesValues.map((value) => ({ field: seriesFields.get(value), label: value, lineStyle: seriesLineStyles.get(value), semanticRole: inferredSeriesRole(value) })),
     },
     rows: [...rowsByX.values()],

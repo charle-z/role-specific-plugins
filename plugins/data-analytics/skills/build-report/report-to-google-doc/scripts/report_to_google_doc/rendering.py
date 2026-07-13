@@ -93,8 +93,8 @@ def render_simple_svg_with_pillow(
     """Render the SVG subset produced by the report builders.
 
     This intentionally covers the report-chart primitives we commonly emit
-    (`rect`, `line`, and `text`) so conversions do not depend on visible browser
-    automation or system Cairo libraries.
+    (`rect`, `path`, `polyline`, `polygon`, `circle`, `line`, and `text`) so
+    conversions do not depend on visible browser automation or system Cairo libraries.
     """
 
     try:
@@ -109,13 +109,15 @@ def render_simple_svg_with_pillow(
     image = Image.new("RGB", (width_px * scale, height_px * scale), (255, 255, 255))
     draw = ImageDraw.Draw(image)
 
-    def scaled_points_from_path(path_data: str) -> list[tuple[float, float]]:
-        points: list[tuple[float, float]] = []
-        for match in re.finditer(
-            r"[ML]\s*(-?[0-9]+(?:\.[0-9]+)?)\s+(-?[0-9]+(?:\.[0-9]+)?)", path_data
-        ):
-            points.append((float(match.group(1)) * scale, float(match.group(2)) * scale))
-        return points
+    def scaled_points_from_attribute(points_value: str) -> list[tuple[float, float]]:
+        values = [
+            float(value)
+            for value in re.findall(r"-?[0-9]+(?:\.[0-9]+)?", points_value)
+        ]
+        return [
+            (values[index] * scale, values[index + 1] * scale)
+            for index in range(0, len(values) - 1, 2)
+        ]
 
     for el in svg.find_all(True):
         if el.name == "rect":
@@ -170,33 +172,18 @@ def render_simple_svg_with_pillow(
                 radius = width / 2
                 for x, y in [(x1, y1), (x2, y2)]:
                     draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=stroke)
-        elif el.name == "path":
-            points = scaled_points_from_path(str(el.get("d") or ""))
+        elif el.name in {"polyline", "polygon"}:
+            points = scaled_points_from_attribute(str(el.get("points") or ""))
             if len(points) < 2:
                 continue
             fill = parse_hex_color(el.get("fill"), None)
-            if fill is not None and str(el.get("d") or "").strip().endswith("Z"):
-                draw.polygon(points, fill=fill)
+            if el.name == "polygon" and fill is not None:
+                draw.polygon(points, fill=color_with_opacity(fill, el.get("opacity")))
             stroke = parse_hex_color(el.get("stroke"), None)
             if stroke is not None:
                 width = max(1, round(svg_float(el.get("stroke-width"), 1) * scale))
-                draw.line(points, fill=stroke, width=width, joint="curve")
-                if el.get("stroke-linecap") == "round":
-                    radius = width / 2
-                    for x, y in (points[0], points[-1]):
-                        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=stroke)
-        elif el.name == "circle":
-            fill = parse_hex_color(el.get("fill"), None)
-            stroke = parse_hex_color(el.get("stroke"), None)
-            cx = svg_float(el.get("cx")) * scale
-            cy = svg_float(el.get("cy")) * scale
-            radius = svg_float(el.get("r")) * scale
-            box = [cx - radius, cy - radius, cx + radius, cy + radius]
-            if fill is not None:
-                draw.ellipse(box, fill=fill)
-            if stroke is not None:
-                width = max(1, round(svg_float(el.get("stroke-width"), 1) * scale))
-                draw.ellipse(box, outline=stroke, width=width)
+                line_points = points + [points[0]] if el.name == "polygon" else points
+                draw.line(line_points, fill=stroke, width=width, joint="curve")
         elif el.name == "text":
             text = collapse_ws(el.get_text("", strip=True)).strip()
             if not text:

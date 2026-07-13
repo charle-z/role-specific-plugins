@@ -36,9 +36,22 @@ Operating rules:
 - Do identify the pressure that makes the workflow important now.
 - Do not jump to product recommendations before this step is complete.
 
-### Step 2: Run the public research pass
+### Step 2: Find the account-native business-case anchor
 
-If a named company is present and public research is not explicitly disabled, run a public research pass before final workflow prioritization.
+Before broad research, look for the strongest account-native artifact:
+
+- user-provided metrics, notes, links, or exports;
+- exact-match ~~Knowledge & Files queries such as `[customer] business case`, `value case`, `ROI`, `pilot target`, or `expansion path`;
+- the matching ~~CRM opportunity;
+- relevant ~~Meeting Transcripts.
+
+Fetch the strongest anchor first. High-signal anchors contain the named customer, workflow, decision audience, commercial stakes, metrics, urgency, or caveats. Preserve commercial facts such as pilot amount, expansion path, target value, budget range, close timing, and paid-pilot terms; if ~~CRM is thin, keep the sourced fact and separately name the CRM gap.
+
+Use adjacent sources only to validate material gaps such as workflow pain, approval path, budget ownership, timing, risks, or customer-facing follow-up. Stop the first pass once the core case is supported.
+
+### Step 3: Run the public research pass
+
+If a named public company is present and public research is not explicitly disabled, run a focused public research pass unless the account-native anchor already answers the material why-now question. Do not let this delay the first useful case.
 
 Gather and synthesize, when available:
 
@@ -65,7 +78,7 @@ Operating rules:
 - Do not use earnings rhetoric as proof of company-specific impact.
 - Do not bloat the output with generic company background.
 
-### Step 3: Understand the customer workflow
+### Step 4: Understand the customer workflow
 
 Before identifying use cases, understand the actual workflow, business process, or functional motion the customer is trying to improve.
 
@@ -107,7 +120,7 @@ Operating rules:
 - Do describe the workflow in business language, not product language.
 - Do not stay at the level of broad corporate transformation themes.
 
-### Step 4: Identify the highest-priority use cases
+### Step 5: Identify the highest-priority use cases
 
 Do not list every possible use case.
 
@@ -132,7 +145,7 @@ Operating rules:
 - Do tie each use case to a specific workflow problem.
 - Do not include attractive but weakly supported use cases.
 
-### Step 5: Define the value drivers
+### Step 6: Define the value drivers
 
 For each prioritized use case, define what kind of business value it creates.
 
@@ -154,7 +167,7 @@ Operating rules:
 - Do map each use case to the fewest value buckets needed to explain the business case clearly.
 - Do not treat "value" as a vague synonym for "better."
 
-### Step 6: Identify the metrics required
+### Step 7: Identify the metrics required
 
 For each use case, identify what must be measured.
 
@@ -190,7 +203,7 @@ Operating rules:
 - Do separate known metrics from missing metrics.
 - Do not imply quantifiability when the required inputs are missing.
 
-### Step 7: Quantify the value
+### Step 8: Quantify the value
 
 Build directional or quantified value hypotheses.
 
@@ -218,7 +231,7 @@ Operating rules:
 - Do keep the case structural if customer data is weak.
 - Do not fake precision.
 
-### Step 8: Translate the impact into business outcomes
+### Step 9: Translate the impact into business outcomes
 
 Operational improvements should be translated into business value.
 
@@ -242,7 +255,7 @@ Operating rules:
 - Do explain why the KPI matters economically.
 - Do not leave the case stuck at the level of workflow efficiency.
 
-### Step 9: Draft the business narrative
+### Step 10: Draft the business narrative
 
 After the analysis, write the narrative in a way that an executive can understand.
 

@@ -10,12 +10,6 @@ caveats, and recommended follow-up without opening the source report.
 
 This skill consumes an HTML report. It does not convert a live MCP app report directly; if only an MCP app report exists, build an HTML report from the same source evidence as a separate report delivery mode first.
 
-## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
-
 ## Workflow
 
 1. Resolve the local HTML report.
@@ -56,7 +50,7 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
 
 6. Hand off the deck.
 
-   Return the Google Slides URL, local PPTX path, source HTML path, and verification performed.
+   Return the Google Slides URL and, when useful, the local PPTX path or source HTML path. Keep routine check, preflight, thumbnail-inspection, and import-check details in support artifacts. Do not list internal checks in the user-facing handoff unless a check failed, was unavailable, or produced a user-relevant caveat.
 
 ## Standards
 
@@ -69,6 +63,7 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
 - Keep gross metric reads, net/incremental reads, causal claims, and caveats visibly separated when the source report distinguishes those lenses.
 - Use editable text and native PPTX tables wherever practical. Use native PPTX bullets; do not fake bullets with typed dashes.
 - Preserve source charts as evidence images. Do not screenshot the whole HTML report or paste whole report sections.
+- Support self-contained Recharts HTML reports whose chart evidence remains available as same-data inline SVG/table fallbacks or embedded images; the helper renders those into local chart evidence images before building the deck.
 - Use one chart per evidence slide unless the report has a stronger grouped comparison.
 - Keep table slides legible. If a full table is too dense, keep the main comparison in the deck and move extra detail to speaker notes or source slides.
 - Source notes should be visible but quiet.

@@ -1,27 +1,26 @@
 ---
 name: design-kpis
-description: "Design KPI frameworks, set targets, and develop measurement plans that help teams make product or business decisions. Use when success metrics, drivers, guardrails, targets, or measurement approach need to be defined or improved. Use $metric-diagnostics when the task is to explain why an existing metric moved."
+description: "Design KPI frameworks, metric definitions, targets, guardrails, and measurement plans for product or business decisions. Use when success metrics, drivers, guardrails, targets, or the measurement approach need to be defined or improved."
 ---
 
 # Design KPIs
 
 Design KPI frameworks, set targets, and develop measurement plans that help teams make product or business decisions.
 
+## When To Use Data Quality First
+
+Use $analyze-data-quality first when the task is to reconcile existing metrics, dashboards, tables, owners, or sources of truth.
+
+Return to this skill only when the user asks to define the metric going forward, redesign the KPI framework, choose guardrails, or set targets.
+
 ## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
 
 ### Source Discovery And Verification
 
-Use the relevant semantic layer first when one exists. Treat it as the starting map for candidate metrics, tables, joins, filters, caveats, source precedence, and known conflicts.
+Use the relevant semantic layer as a starting map, not a boundary.
 
-Do not stop at the semantic layer or the first plausible source. Search across the relevant available company source lanes, including structured data or data warehouses, dashboards, company docs, team communication, notebooks, code repositories, and other connected company knowledge or data that could change the answer.
-
-For source-backed analytical work, always verify through live source reads. When the answer depends on data, run fresh data queries against the available structured-data sources before drawing conclusions, even when the semantic layer already names likely tables or definitions.
-
-Use the combined evidence to determine which source controls the answer, note meaningful disagreements, and state why the selected source is authoritative.
+1. **Explore all possible sources.** Search every connected or provided source that could contain task-relevant data or change the interpretation. Within each structured-data source, run fresh catalog or metadata discovery for relevant schemas, datasets, tables, views, models, and metrics. Known sources, tables, dashboards, and semantic mappings are starting points, not stopping points.
+2. **Compare duplicates and conflicts.** When sources overlap or disagree, compare ownership, freshness, definition, grain, coverage, and directness. Use the best authoritative source, or combine complementary sources when needed. Note material conflicts, explain why the selected source or sources control the answer, and verify selected data through live reads before concluding.
 
 ### Source Access Guardrail
 
@@ -80,7 +79,7 @@ Compare aspirational targets with what the team can realistically influence thro
 
 ### 6. Deliver The Recommendation
 
-Keep the final recommendation concise and decision-oriented. Use $build-report when the user asks for a polished artifact; otherwise return a compact metric-design brief with:
+Keep the final recommendation concise and decision-oriented, and deliver it inline by default. Do not load `$build-report` merely because the KPI framework uses evidence, compares candidates, or contains several metrics. Use `$visualize-data` and `$build-report` when a data visual would materially improve the answer, such as by showing how a proposed target compares with historical performance or benchmarks, or by clarifying tradeoffs or candidate scoring. Honor an explicitly requested report, dashboard, notebook, spreadsheet, native document, or slide deck as the primary artifact. The recommendation should include:
 
 1. initiative summary
 2. recommended metric candidates, with definition and rationale

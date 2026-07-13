@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Boxes, Camera, ChartArea, ChartBar, ChartColumn, ChartColumnStacked, ChartLine, ChartNoAxesColumn, ChartNoAxesCombined, ChartScatter, ChartSpline, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Database, Ellipsis, Expand, Filter as FunnelIcon, FileDown, FileText, Globe, Pencil, Presentation, RefreshCw, Table2, Tally3, Trash2, X, } from "lucide-react";
+import { ArrowDown, ArrowUp, Boxes, Camera, ChartArea, ChartBar, ChartColumn, ChartColumnStacked, ChartLine, ChartNoAxesColumn, ChartNoAxesCombined, ChartScatter, ChartSpline, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Database, Ellipsis, Expand, Filter as FunnelIcon, FileDown, FileText, Globe, Pencil, Presentation, Table2, Tally3, Trash2, X, } from "lucide-react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnalyticsLayoutCanvas } from "./layout/AnalyticsLayoutCanvas";
@@ -6,13 +6,8 @@ import { isChartType as sharedIsChartType } from "./charting/chart-compatibility
 import { applyChartSpecOverride, chartEncoding, chartEncodingField, chartEncodingFields, chartEncodingLabel, chartHasEncodingSpec, chartSpecOverrideFromWidgetSpec, chartUsedFields, compatibleChartTypesFor, compatibleChartTypesForArtifactCard, withChartType } from "./charting/chart-app-helpers";
 import { ChartRenderer } from "./charting/ChartRenderer";
 import { RichMarkdown } from "./layout/RichMarkdown";
+import { calculateHorizontalScrollEdges, calculateTableSizing } from "./tables/tableSizing";
 import { copyElementAsImage, copyTextToClipboard, imageCopySuccessMessage, shouldOfferImageClipboardCopy, usePreparedImageExport } from "./imageExport";
-function resizeEditableTextarea(element) {
-if (!element)
-return;
-element.style.height = "auto";
-element.style.height = `${element.scrollHeight}px`;
-}
 function cloneSerializable(value) {
 return JSON.parse(JSON.stringify(value));
 }
@@ -21,6 +16,7 @@ const DEFAULT_REPORT_CARD_LAYOUT = "full";
 const CARD_DRAG_CANCEL_SELECTOR = ".viz-card__no-drag, button, a, input, textarea, select, [contenteditable='true'], .rich-markdown-editor, [role='button'], [role='menu'], [role='menuitem'], [role='menuitemradio']";
 const CHART_FULLSCREEN_HEIGHT = 520;
 const TABLE_CARD_PAGE_SIZE = 15;
+const SOURCE_DATA_PREVIEW_PAGE_SIZE = 10;
 const TABLE_COLUMN_DEFAULT_WIDTH = 144;
 const TABLE_COLUMN_DENSE_HORIZONTAL_PADDING = 16;
 const TABLE_COLUMN_HEADER_CHROME_WIDTH = 24;
@@ -31,17 +27,21 @@ const TABLE_COLUMN_NUMERIC_MAX_WIDTH = 136;
 const TABLE_COLUMN_SAMPLE_SIZE = 50;
 const TABLE_COLUMN_TEXT_MAX_WIDTH = 220;
 const TABLE_COLUMN_LONG_TEXT_MAX_WIDTH = 260;
+const TABLE_COLUMN_CONTENT_FIT_MAX_WIDTH = 240;
+const TABLE_COLUMN_CONTENT_FIT_TARGET_LENGTH = 28;
+const EMPTY_HORIZONTAL_SCROLL_EDGES = {
+canScrollLeft: false,
+canScrollRight: false,
+hasOverflow: false,
+scrollbarBlockSize: 0,
+scrollbarInlineSize: 0
+};
 const EMPTY_ACCESS_ISSUES = [];
 const EMPTY_CARDS = [];
 const EMPTY_CHARTS = [];
 const EMPTY_FILTERS = [];
 const EMPTY_REPORT_BLOCKS = [];
 const EMPTY_TABLES = [];
-const KPI_COLUMN_BREAKPOINTS = [
-{ minWidth: 760, columns: 3 },
-{ minWidth: 520, columns: 2 },
-{ minWidth: 392, columns: 2 }
-];
 function getHeatmapFill(intensity) {
 const index = clamp(Math.floor(intensity * heatmapBlueScale.length), 0, heatmapBlueScale.length - 1);
 return heatmapBlueScale[index];
@@ -165,12 +165,35 @@ return (<svg aria-hidden="true" className={className} fill="none" height="21" vi
 <path clipRule="evenodd" d="M10.6 2.53955C14.9713 2.53955 18.515 6.08326 18.515 10.4546C18.515 14.8259 14.9713 18.3696 10.6 18.3696C6.22864 18.3696 2.68494 14.8259 2.68494 10.4546C2.68494 6.08326 6.22864 2.53955 10.6 2.53955ZM10.6 3.86963C6.96318 3.86963 4.01501 6.81779 4.01501 10.4546C4.01501 14.0914 6.96318 17.0396 10.6 17.0396C14.2368 17.0396 17.1849 14.0914 17.1849 10.4546C17.1849 6.81779 14.2368 3.86963 10.6 3.86963Z" fill="currentColor" fillRule="evenodd"/>
 </svg>);
 }
+const TOOLTIP_OPEN_DELAY_MS = 300;
 function MetricDescriptionPopover({ description, label }) {
 const tooltipId = useId();
 const buttonRef = useRef(null);
 const popoverRef = useRef(null);
+const openTimerRef = useRef(null);
 const [isOpen, setIsOpen] = useState(false);
 const [popoverStyle, setPopoverStyle] = useState(null);
+const clearOpenTimer = useCallback(() => {
+if (openTimerRef.current == null)
+return;
+window.clearTimeout(openTimerRef.current);
+openTimerRef.current = null;
+}, []);
+const openImmediately = useCallback(() => {
+clearOpenTimer();
+setIsOpen(true);
+}, [clearOpenTimer]);
+const openAfterDelay = useCallback(() => {
+clearOpenTimer();
+openTimerRef.current = window.setTimeout(() => {
+openTimerRef.current = null;
+setIsOpen(true);
+}, TOOLTIP_OPEN_DELAY_MS);
+}, [clearOpenTimer]);
+const closePopover = useCallback(() => {
+clearOpenTimer();
+setIsOpen(false);
+}, [clearOpenTimer]);
 const updatePopoverPosition = useCallback(() => {
 if (typeof window === "undefined")
 return;
@@ -213,10 +236,11 @@ window.removeEventListener("resize", updatePopoverPosition);
 window.removeEventListener("scroll", updatePopoverPosition, true);
 };
 }, [isOpen, updatePopoverPosition]);
+useEffect(() => clearOpenTimer, [clearOpenTimer]);
 const renderedPopoverStyle = popoverStyle
 ? { left: popoverStyle.left, maxWidth: popoverStyle.maxWidth, top: popoverStyle.top }
 : { left: 0, maxWidth: "min(320px, calc(100vw - 24px))", top: 0, visibility: "hidden" };
-return (<span className="kpi-info-wrap" onBlur={() => setIsOpen(false)} onFocus={() => setIsOpen(true)} onMouseEnter={() => setIsOpen(true)} onMouseLeave={() => setIsOpen(false)}>
+return (<span className="kpi-info-wrap" onBlur={closePopover} onFocus={openImmediately} onMouseEnter={openAfterDelay} onMouseLeave={closePopover}>
 <button aria-describedby={isOpen ? tooltipId : undefined} aria-label={`${label}: ${description}`} className="kpi-info" ref={buttonRef} type="button">
 <MetricInfoIcon className="kpi-info-icon"/>
 </button>
@@ -334,6 +358,11 @@ const isNumericColumn = isNumericTableColumn(column, sampleRows);
 const isDateColumn = /(date|day|month|quarter|week)/.test(columnKey);
 const horizontalPadding = TABLE_COLUMN_HEADER_CHROME_WIDTH + (density === "dense" ? TABLE_COLUMN_DENSE_HORIZONTAL_PADDING : 0);
 const charWidth = isNumericColumn ? 7.2 : 7.4;
+if (column.sizing === "content") {
+const targetLength = Math.min(Math.max(labelLength, p90Length), TABLE_COLUMN_CONTENT_FIT_TARGET_LENGTH);
+const measuredContentWidth = Math.ceil(targetLength * charWidth + horizontalPadding);
+return clamp(measuredContentWidth, TABLE_COLUMN_MIN_WIDTH, TABLE_COLUMN_CONTENT_FIT_MAX_WIDTH);
+}
 const targetLength = isLongTextColumn
 ? Math.min(Math.max(labelLength + 4, p90Length), 44)
 : Math.max(labelLength, p90Length);
@@ -526,11 +555,14 @@ return layout ?? DEFAULT_DASHBOARD_CARD_LAYOUT;
 function reportCardLayout(layout) {
 return layout ?? DEFAULT_REPORT_CARD_LAYOUT;
 }
+function metricCardBlockId(blockId, cardId) {
+return `metric:${blockId}:${cardId}`;
+}
 function contentLayoutKey(manifest) {
 if (!manifest)
 return null;
 const base = `${manifest.title}:${manifest.generatedAt}`;
-return `datascience-dashboard:content-layout:${base}`;
+return `datascience-dashboard:content-layout:v2:${base}`;
 }
 function chartTextKey(manifest) {
 if (!manifest)
@@ -603,14 +635,19 @@ if (!manifest)
 return null;
 const base = `${manifest.title}:${manifest.generatedAt}`;
 const blockSignature = (manifest.blocks ?? [])
-.map((block) => `${block.id}:${reportCardLayout(block.layout)}`)
+.map((block) => `${block.id}:${reportCardLayout(block.layout)}:${(block.cardIds ?? []).join("|")}`)
 .join(",");
-return `datascience-report:content-layout:v3:${base}:${blockSignature}`;
+return `datascience-report:content-layout:v4:${base}:${blockSignature}`;
 }
 function sourceForChart(chart, sources) {
 if (chart?.source && typeof chart.source === "object")
 return chart.source;
 return sources.find((source) => source.id === chart.sourceId) ?? null;
+}
+function sourceForCard(card, sources) {
+if (card?.source && typeof card.source === "object")
+return card.source;
+return sources.find((source) => source.id === card?.sourceId) ?? null;
 }
 function sourceForTable(table, sources) {
 if (table?.source && typeof table.source === "object")
@@ -727,36 +764,68 @@ const fallbackMetrics = metricDefinitions.length
 .filter((column) => ["number", "percent", "currency"].includes(column.format ?? column.type ?? ""))
 .map((column) => `${column.label ?? column.field}: displayed from ${column.field}`)
 .slice(0, 6);
-const filterRows = filters.length ? filters : activeFilters && activeFilters !== "None" ? [activeFilters] : ["None declared"];
+const selectedFilterRows = typeof activeFilters === "string"
+? activeFilters.split(/,\s+(?=[^,:]+:\s)/).map((filter) => filter.trim()).filter(Boolean)
+: [];
+const filterRows = filters.length
+? filters
+: activeFilters && activeFilters !== "None" && selectedFilterRows.length
+? selectedFilterRows
+: ["None declared"];
 const tableRows = tables.length ? tables : ["Not declared"];
 const snapshotValue = sourceQuery?.executed_at ?? sourceQueryFromSourceSpec(source)?.executed_at ?? snapshot?.generatedAt ?? "Not declared";
-const primarySource = tableRows[0] === "Not declared" ? dataset ?? "reviewed rows" : tableRows[0];
-const summary = `This block uses ${primarySource} for dataset ${dataset ?? "unknown"}.${filterRows[0] !== "None declared" ? ` Filters: ${filterRows.slice(0, 2).join("; ")}.` : ""} Use the source query below to inspect the exact logic.`;
 return {
 dataset: dataset ?? "Not declared",
 fields: columns
 .map((column) => column.field ?? column.key ?? column.label)
 .filter(Boolean),
 filters: filterRows,
-metricDefinitions: fallbackMetrics.length ? fallbackMetrics : ["Displayed directly from source columns"],
+metricDefinitions: fallbackMetrics.length ? fallbackMetrics : ["Metric values: displayed directly from source columns"],
 snapshot: snapshotValue,
-summary,
 tables: tableRows
 };
 }
-function detailText(values, fallback = "Not declared") {
-const items = Array.isArray(values) ? values.filter(Boolean) : [values].filter(Boolean);
-return items.length ? items.join("; ") : fallback;
+function Badge({ children, className = "" }) {
+return <span className={`chip ${className}`.trim()}>{children}</span>;
 }
-function detailList(values, fallback = "Not declared") {
+function sourceMetadataValue(value, fallback = "Not declared") {
+return String(value ?? "").trim() || fallback;
+}
+function sourceMetadataChips(values, { fallback = "Not declared" } = {}) {
 const items = Array.isArray(values) ? values.filter(Boolean) : [values].filter(Boolean);
-if (!items.length)
-return fallback;
-return (<div className="source-detail-list">
-{items.map((item, index) => <div className="source-detail-list-item" key={`${index}-${item}`}>
+const visibleItems = items.length ? items : [fallback];
+return (<div className="source-metadata-chip-list">
+{visibleItems.map((item, index) => <Badge className="source-metadata-chip" key={`${index}-${item}`}>
 {item}
-</div>)}
+</Badge>)}
 </div>);
+}
+function metricDefinitionParts(value) {
+const text = String(value ?? "").trim();
+const delimiterMatch = text.match(/^(.+?)(:\s*|\s+[=\u2013\u2014]\s+)(.+)$/);
+if (delimiterMatch) {
+return { definition: delimiterMatch[3], term: delimiterMatch[1] };
+}
+const proseMatch = text.match(/^(.+?)(\s+(?:are|is|equals|uses?|means|measures|represents|counts|includes|excludes)\s+)(.+)$/i);
+if (proseMatch) {
+return { definition: `${proseMatch[2].trim()} ${proseMatch[3]}`, term: proseMatch[1] };
+}
+return { definition: text, term: "Definition" };
+}
+function metricDefinitionRows(values, fallback = "Not declared") {
+const items = Array.isArray(values) ? values.filter(Boolean) : [values].filter(Boolean);
+return (items.length ? items : [fallback]).map((item) => {
+const definition = metricDefinitionParts(item);
+return { definition: definition.definition, metric: definition.term };
+});
+}
+const SOURCE_METRIC_DEFINITION_COLUMNS = [
+{ field: "metric", label: "Metric", sizing: "content", type: "text" },
+{ field: "definition", label: "Definition", type: "text" }
+];
+function sourceSnapshotDate(value) {
+const formatted = formatDate(value);
+return formatted === "Unknown" || formatted === "Not declared" ? "Not declared" : formatted;
 }
 function compareTableValues(a, b, field, direction) {
 const aValue = a[field];
@@ -779,25 +848,35 @@ sensitivity: "base"
 }
 return direction === "asc" ? result : -result;
 }
+function tableDefaultSort(table) {
+const defaultSort = table?.defaultSort;
+if (!defaultSort || !table.columns.some((column) => column.field === defaultSort.field))
+return null;
+return {
+field: defaultSort.field,
+direction: defaultSort.direction === "desc" ? "desc" : "asc"
+};
+}
 function MetricBadge({ metric, row }) {
 const value = row[metric.field];
 const renderedValue = formatMetricValue(value, metric);
 if (!renderedValue)
 return null;
 const direction = metricMovementDirection(value, metric.signed === true);
-return (<div className={`metric-badge ${direction ?? "neutral"}`}>
+return (<Badge className={`metric-badge ${direction ?? "neutral"}`}>
 <span className="metric-badge-label">{metric.label}</span>
 <span className="metric-badge-value">{renderedValue}</span>
-</div>);
+</Badge>);
 }
-function KpiCard({ card, filters, selectedFilters, snapshot }) {
+function KpiCard({ action, card, className = "", filters, id, selectedFilters, snapshot }) {
 const metrics = cardMetrics(card);
 const [primaryMetric, ...supportingMetrics] = metrics;
 const rows = filterRowsForDataset(getRows(snapshot, card.dataset), card.dataset, filters, selectedFilters, metrics.map((metric) => metric.field));
 const row = rows.find((candidate) => rowMatchesFilter(candidate, card.filter)) ?? {};
 const label = cardLabel(card);
 const description = card.description?.trim();
-return (<section className="kpi-card">
+return (<section className={`kpi-card ${className}`.trim()} id={id}>
+{action}
 <div className="kpi-label-row">
 <div className="kpi-label">{label}</div>
 {description ? <MetricDescriptionPopover description={description} label={label}/> : null}
@@ -808,10 +887,6 @@ return (<section className="kpi-card">
 </div>) : null}
 </section>);
 }
-function getKpiColumnCount(width, cardCount) {
-const breakpoint = KPI_COLUMN_BREAKPOINTS.find((item) => width >= item.minWidth);
-return Math.max(1, Math.min(cardCount, breakpoint?.columns ?? 1));
-}
 function useMeasuredElementSize() {
 const ref = useRef(null);
 const [size, setSize] = useState({ height: 0, width: 0 });
@@ -820,7 +895,7 @@ const element = ref.current;
 if (!element)
 return;
 let frame = 0;
-const updateWidth = () => {
+const updateSize = () => {
 window.cancelAnimationFrame(frame);
 frame = window.requestAnimationFrame(() => {
 const rect = element.getBoundingClientRect();
@@ -830,30 +905,17 @@ width: Math.floor(rect.width)
 });
 });
 };
-updateWidth();
-const observer = new ResizeObserver(updateWidth);
+updateSize();
+const observer = new ResizeObserver(updateSize);
 observer.observe(element);
-window.addEventListener("resize", updateWidth);
+window.addEventListener("resize", updateSize);
 return () => {
 window.cancelAnimationFrame(frame);
 observer.disconnect();
-window.removeEventListener("resize", updateWidth);
+window.removeEventListener("resize", updateSize);
 };
 }, []);
 return [ref, size];
-}
-function KpiStrip({ cards, filters, selectedFilters, snapshot }) {
-const [stripRef, stripSize] = useMeasuredElementSize();
-const fallbackWidth = typeof window === "undefined" ? 0 : window.innerWidth;
-const columns = getKpiColumnCount(stripSize.width || fallbackWidth, cards.length);
-const placeholderCount = (columns - (cards.length % columns)) % columns;
-const stripStyle = { "--kpi-columns": columns };
-if (!cards.length)
-return null;
-return (<section className={`kpi-strip kpi-columns-${columns}`} style={stripStyle} aria-label="Key metrics" ref={stripRef}>
-{cards.map((card) => (<KpiCard card={card} filters={filters} key={card.id} selectedFilters={selectedFilters} snapshot={snapshot}/>))}
-{Array.from({ length: placeholderCount }, (_, index) => (<div aria-hidden="true" className="kpi-card kpi-card-placeholder" key={`kpi-placeholder-${index}`}/>))}
-</section>);
 }
 const MENU_CLOSE_ANIMATION_MS = 100;
 const NARROW_FIXED_MENU_QUERY = "(max-width: 560px)";
@@ -1095,12 +1157,7 @@ return (<div className="panel-header">
 }
 function EditablePageTitle({ ariaLabel, isEditMode, onChange, onRequestEditMode, placeholder, readOnly = false, title }) {
 const [isEditing, setIsEditing] = useState(false);
-const textareaRef = useRef(null);
 const displayTitle = title.trim() ? title : placeholder;
-useEffect(() => {
-if (isEditing)
-resizeEditableTextarea(textareaRef.current);
-}, [isEditing, title]);
 function startEditing() {
 if (readOnly)
 return;
@@ -1114,10 +1171,12 @@ return (<div className="page-title-edit-target page-title-readonly">
 </div>);
 }
 if (isEditing) {
-return (<textarea aria-label={ariaLabel} autoFocus className="page-title-editor viz-card__no-drag" onBlur={() => setIsEditing(false)} onChange={(event) => {
-resizeEditableTextarea(event.currentTarget);
-onChange(event.currentTarget.value);
-}} placeholder={placeholder} ref={textareaRef} rows={1} value={title}/>);
+return (<input aria-label={ariaLabel} autoFocus className="page-title-editor viz-card__no-drag" onBlur={() => setIsEditing(false)} onChange={(event) => onChange(event.currentTarget.value)} onKeyDown={(event) => {
+if (event.key === "Enter") {
+event.preventDefault();
+event.currentTarget.blur();
+}
+}} placeholder={placeholder} type="text" value={title}/>);
 }
 return (<div aria-label={ariaLabel} className="page-title-edit-target viz-card__no-drag" data-page-title-edit-mode={isEditMode ? "true" : "false"} onClick={() => {
 if (isEditMode)
@@ -1203,6 +1262,7 @@ return first?.trim() || fallback;
 }
 function ChartBody({ accessIssue, chart, filters, isFullscreen = false, selectedFilters, snapshot }) {
 const [visibleSeries, setVisibleSeries] = useState();
+const [chartBodyRef, chartBodySize] = useMeasuredElementSize();
 const rawRows = filterRowsForDataset(getRows(snapshot, chart.dataset), chart.dataset, filters, selectedFilters, chartUsedFields(chart));
 if (accessIssue) {
 return (<div className="permission-card">
@@ -1216,7 +1276,9 @@ return (<div className="permission-card">
 if (!rawRows.length) {
 return <div className="empty-state">No rows match the selected filters.</div>;
 }
-return (<ChartRenderer chart={chart} height={isFullscreen ? CHART_FULLSCREEN_HEIGHT : undefined} onVisibleSeriesChange={setVisibleSeries} rows={rawRows} surface={isFullscreen ? "explorer" : "card"} visibleSeries={visibleSeries}/>);
+return (<div className="chart-body-measure" ref={chartBodyRef}>
+<ChartRenderer chart={chart} height={isFullscreen ? CHART_FULLSCREEN_HEIGHT : undefined} onVisibleSeriesChange={setVisibleSeries} rows={rawRows} surface={isFullscreen ? "explorer" : "card"} visibleSeries={visibleSeries} width={chartBodySize.width || undefined}/>
+</div>);
 }
 function VizCard({ accessIssue, chart, children, isEditMode, isMenuOpen, layout, onCopyResult, onDeleteBlock, onRequestEditMode, onTextChange, onMenuOpenChange, onModalOpen, textOverride }) {
 const cardRef = useRef(null);
@@ -1547,41 +1609,112 @@ nodes.push(sql.slice(cursor));
 return nodes;
 }
 const SOURCE_FETCH_TIMEOUT_MS = 10000;
-function DataSourceDetails({ children, details, source, sourceQuery }) {
-return (<div className="source-modal-sections">
-<section className="source-modal-section">
-<h3>Details</h3>
-<dl className="details-grid source-details-grid">
+function Tabs({ ariaLabel, onSelect, selectedKey, tabs }) {
+const listRef = useRef(null);
+const indicatorRef = useRef(null);
+const updateIndicator = useCallback(() => {
+const list = listRef.current;
+const indicator = indicatorRef.current;
+const activeTab = list?.querySelector('.source-modal-tab[aria-selected="true"]');
+if (!(list instanceof HTMLElement) || !(activeTab instanceof HTMLElement) || !(indicator instanceof HTMLElement))
+return;
+const listRect = list.getBoundingClientRect();
+const tabRect = activeTab.getBoundingClientRect();
+indicator.style.width = `${tabRect.width}px`;
+indicator.style.transform = `translate3d(${tabRect.left - listRect.left + list.scrollLeft}px, 0, 0)`;
+indicator.dataset.ready = "true";
+}, [selectedKey]);
+useLayoutEffect(() => {
+updateIndicator();
+const list = listRef.current;
+if (!(list instanceof HTMLElement) || typeof ResizeObserver !== "function")
+return undefined;
+const observer = new ResizeObserver(updateIndicator);
+observer.observe(list);
+list.querySelectorAll(".source-modal-tab").forEach((tab) => observer.observe(tab));
+return () => observer.disconnect();
+}, [tabs, updateIndicator]);
+function handleKeyDown(event) {
+const currentIndex = tabs.findIndex((tab) => tab.id === selectedKey);
+let nextIndex = currentIndex;
+if (event.key === "ArrowRight")
+nextIndex = (currentIndex + 1) % tabs.length;
+else if (event.key === "ArrowLeft")
+nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+else if (event.key === "Home")
+nextIndex = 0;
+else if (event.key === "End")
+nextIndex = tabs.length - 1;
+else
+return;
+event.preventDefault();
+const nextTab = tabs[nextIndex];
+if (!nextTab)
+return;
+onSelect(nextTab.id);
+window.requestAnimationFrame(() => document.getElementById(nextTab.tabId)?.focus());
+}
+return (<div aria-label={ariaLabel} aria-orientation="horizontal" className="source-modal-tabs" onKeyDown={handleKeyDown} ref={listRef} role="tablist">
+{tabs.map((tab) => {
+const isSelected = selectedKey === tab.id;
+return (<div className="source-modal-tab-item" key={tab.id}>
+<button aria-controls={tab.panelId} aria-pressed={isSelected} aria-selected={isSelected} className="source-modal-tab" id={tab.tabId} onClick={() => onSelect(tab.id)} role="tab" tabIndex={isSelected ? 0 : -1} type="button">
+{tab.label}
+</button>
+</div>);
+})}
+<span aria-hidden="true" className="source-modal-tab-indicator" ref={indicatorRef}/>
+</div>);
+}
+function DataSourceDetails({ children, details, itemLabel, itemType, source, sourceQuery }) {
+const [activeTab, setActiveTab] = useState("overview");
+const tabId = useId();
+const tabs = [
+{ id: "overview", label: "Overview", panelId: `${tabId}-overview-panel`, tabId: `${tabId}-overview-tab` },
+{ id: "data", label: "Data preview", panelId: `${tabId}-data-panel`, tabId: `${tabId}-data-tab` },
+{ id: "sql", label: "SQL query", panelId: `${tabId}-sql-panel`, tabId: `${tabId}-sql-tab` }
+];
+return (<div className="source-modal-content">
+<Tabs ariaLabel="Data source sections" onSelect={setActiveTab} selectedKey={activeTab} tabs={tabs}/>
+<div className="source-modal-body">
+{activeTab === "overview" ? (<section aria-labelledby={`${tabId}-overview-tab`} className="source-modal-tab-panel source-overview" id={`${tabId}-overview-panel`} role="tabpanel">
+<div className="source-details-layout">
+<dl className="source-details-summary">
 <div>
-<dt>Dataset</dt>
-<dd>{details.dataset}</dd>
+<dt>{itemType}</dt>
+<dd>{itemLabel}</dd>
 </div>
 <div>
+<dt>Dataset</dt>
+<dd>{sourceMetadataValue(details.dataset)}</dd>
+</div>
+<div>
+<dt>Data snapshot</dt>
+<dd>{sourceSnapshotDate(details.snapshot)}</dd>
+</div>
+</dl>
+<dl className="source-details-stack">
+<div>
 <dt>Tables used</dt>
-<dd>{detailList(details.tables)}</dd>
+<dd>{sourceMetadataChips(details.tables)}</dd>
 </div>
 <div>
 <dt>Filters</dt>
-<dd>{detailText(details.filters)}</dd>
-</div>
-<div>
-<dt>Metric definitions</dt>
-<dd>{detailList(details.metricDefinitions)}</dd>
-</div>
-<div>
-<dt>Snapshot</dt>
-<dd>{formatDate(details.snapshot)}</dd>
+<dd>{sourceMetadataChips(details.filters)}</dd>
 </div>
 </dl>
-</section>
-<section className="source-modal-section">
-<h3>Source query</h3>
-<SourceQueryBlock source={source} sourceQuery={sourceQuery}/>
-</section>
-<section className="source-modal-section">
-<h3>Data table</h3>
+<div className="source-metric-definitions">
+<SourceDataTable columns={SOURCE_METRIC_DEFINITION_COLUMNS} dataset="__source_metric_definitions" density="spacious" fillAvailableWidth rows={metricDefinitionRows(details.metricDefinitions)}/>
+</div>
+</div>
+</section>) : null}
+{activeTab === "data" ? (<section aria-labelledby={`${tabId}-data-tab`} className="source-modal-tab-panel source-data" id={`${tabId}-data-panel`} role="tabpanel">
 {children}
-</section>
+</section>) : null}
+{activeTab === "sql" ? (<section aria-labelledby={`${tabId}-sql-tab`} className="source-modal-tab-panel source-sql" id={`${tabId}-sql-panel`} role="tabpanel">
+<SourceQueryBlock source={source} sourceQuery={sourceQuery}/>
+</section>) : null}
+</div>
 </div>);
 }
 function SourceQueryBlock({ source, sourceQuery }) {
@@ -1667,7 +1800,7 @@ return (<div className="source-query-shell">
 {source.path ?? source.label}
 </a>) : (source?.path ?? source?.label ?? sourceQuery?.id ?? sourceQuery?.engine)}
 </span>
-<button className="source-query-copy" onClick={() => void handleCopyQuery(displaySourceText || sourceContent.text)} type="button">
+<button aria-live="polite" className="source-query-copy" onClick={() => void handleCopyQuery(displaySourceText || sourceContent.text)} type="button">
 <Copy aria-hidden="true" size={14} strokeWidth={2}/>
 {copyStatus === "copied"
 ? "Copied"
@@ -1712,7 +1845,7 @@ fields.push(field);
 }
 return fields.map((field) => ({ field, label: field }));
 }
-function SourceDataTable({ columns = [], dataset, density = "dense", rows = [] }) {
+function SourceDataTable({ columns = [], dataset, density = "dense", fillAvailableWidth = true, pageSize = TABLE_CARD_PAGE_SIZE, rows = [] }) {
 const previewRows = useMemo(() => asArray(rows).filter((row) => row && typeof row === "object"), [rows]);
 const previewDataset = dataset ?? "__source_preview_rows";
 const table = useMemo(() => ({
@@ -1726,7 +1859,7 @@ useEffect(() => {
 setColumnWidths({});
 }, [table.id]);
 return (<div className="source-data-table">
-<TableContent allowColumnResize={false} columnWidths={columnWidths} density={density} filters={EMPTY_FILTERS} onColumnWidthsChange={(_tableId, nextWidths) => setColumnWidths(nextWidths)} selectedFilters={{}} snapshot={snapshot} table={table}/>
+<TableContent allowColumnResize={false} columnWidths={columnWidths} density={density} fillAvailableWidth={fillAvailableWidth} filters={EMPTY_FILTERS} onColumnWidthsChange={(_tableId, nextWidths) => setColumnWidths(nextWidths)} pageSize={pageSize} selectedFilters={{}} snapshot={snapshot} table={table}/>
 </div>);
 }
 function querySourceForChart(chart, sources) {
@@ -1782,14 +1915,56 @@ event.currentTarget.close();
 <div className="modal-header">
 <div>
 <h2 id="chart-source-modal-title">Data source</h2>
-<p>{chart.title}</p>
 </div>
 <button aria-label="Close data source" className="modal-close-button" onClick={() => dialogRef.current?.close()} type="button">
 <X aria-hidden="true" size={20} strokeWidth={2}/>
 </button>
 </div>
-<DataSourceDetails details={buildDetails} source={source} sourceQuery={sourceQuery}>
-<SourceDataTable dataset={chart.dataset} rows={rows}/>
+<DataSourceDetails details={buildDetails} itemLabel={chart.title} itemType="Chart" source={source} sourceQuery={sourceQuery}>
+<SourceDataTable dataset={chart.dataset} pageSize={SOURCE_DATA_PREVIEW_PAGE_SIZE} rows={rows}/>
+</DataSourceDetails>
+</section>
+</dialog>);
+}
+function CardSourceModalDialog({ activeFilters, card, filters = EMPTY_FILTERS, manifest, onClose, rows: providedRows, selectedFilters = {}, snapshot }) {
+const dialogRef = useRef(null);
+const metrics = cardMetrics(card);
+const source = sourceForCard(card, manifest?.sources ?? []);
+const sourceQuery = sourceQueryFromSourceSpec(source);
+const rows = providedRows ?? filterRowsForDataset(getRows(snapshot, card.dataset), card.dataset, filters, selectedFilters, metrics.map((metric) => metric.field))
+.filter((row) => rowMatchesFilter(row, card.filter));
+const buildDetails = sourceBuildDetails({
+activeFilters,
+dataset: card.dataset,
+metrics,
+source,
+sourceQuery,
+snapshot
+});
+useModalScrollLock(true);
+useEffect(() => {
+const dialog = dialogRef.current;
+if (dialog && !dialog.open) {
+dialog.showModal();
+}
+}, []);
+const label = cardLabel(card);
+return (<dialog aria-labelledby="card-source-modal-title" className="native-modal source-modal" onCancel={onClose} onClick={(event) => {
+if (event.target === event.currentTarget) {
+event.currentTarget.close();
+}
+}} onClose={onClose} ref={dialogRef}>
+<section className="modal-panel source-modal-panel">
+<div className="modal-header">
+<div>
+<h2 id="card-source-modal-title">Data source</h2>
+</div>
+<button aria-label="Close data source" className="modal-close-button" onClick={() => dialogRef.current?.close()} type="button">
+<X aria-hidden="true" size={20} strokeWidth={2}/>
+</button>
+</div>
+<DataSourceDetails details={buildDetails} itemLabel={label} itemType="Metric" source={source} sourceQuery={sourceQuery}>
+<SourceDataTable dataset={card.dataset} pageSize={SOURCE_DATA_PREVIEW_PAGE_SIZE} rows={rows}/>
 </DataSourceDetails>
 </section>
 </dialog>);
@@ -1957,7 +2132,7 @@ if (data.type === "datascience-chart-widget-spec-change" && data.widgetInstanceI
 onChartSpecChange(chart.id, data.visualization_spec);
 }
 if (data.type === "datascience-chart-widget-codex-prompt" && typeof data.prompt === "string") {
-sendCodexPromptToHost(data.prompt, null);
+void sendCodexPromptToHost(data.prompt, "Continue chart analysis");
 }
 }
 window.addEventListener("message", handleWidgetMessage);
@@ -1994,10 +2169,12 @@ const field = chartEncodingField(chart, role);
 if (!field)
 return null;
 const encoding = chartEncoding(chart, role);
+const format = encoding.format ?? (role === "y" ? chart.valueFormat : undefined);
 return {
 key: field,
 label: chartEncodingLabel(chart, role, field),
 type: encoding.type === "temporal" ? "date" : encoding.type === "quantitative" ? "number" : chartWidgetColumnType(encoding, rows[0]?.[field]),
+...(format ? { format } : {}),
 unit: encoding.unit
 };
 }
@@ -2032,7 +2209,10 @@ const sourceQuery = chartSourceQuery ?? sourceSpecQuery;
 const queryText = queryTextFromSourceQuery(chartSourceQuery) ||
 queryTextFromSourceQuery(sourceSpecQuery) ||
 sourceQueryText?.trim();
-const unit = chart.unit ?? chartEncoding(chart, "y").unit ?? (chart.valueFormat === "currency" ? "USD" : chart.valueFormat === "percent" ? "%" : undefined);
+const yEncoding = chartEncoding(chart, "y");
+const yFormat = yEncoding.format ?? chart.valueFormat;
+const yFormatSpec = yFormat ? { format: yFormat } : {};
+const unit = chart.unit ?? yEncoding.unit ?? (yFormat === "currency" ? "USD" : yFormat === "percent" ? "%" : undefined);
 const settings = chartWidgetSettings(chart);
 if (xField && yField) {
 const columns = [
@@ -2058,7 +2238,7 @@ intent: chart.intent ?? "custom",
 visualization_type: chart.type,
 encodings: {
 x: { field: xField, type: chartEncoding(chart, "x").type ?? "nominal" },
-y: { aggregate: chartEncoding(chart, "y").aggregate ?? "sum", field: yField, type: "quantitative", unit },
+y: { aggregate: yEncoding.aggregate ?? "sum", field: yField, type: "quantitative", ...yFormatSpec, unit },
 ...(colorField ? { color: { field: colorField, type: chartEncoding(chart, "color").type ?? "nominal" } } : {})
 },
 presentation: {
@@ -2086,7 +2266,7 @@ result_table: {
 columns: [
 { key: xField, label: chartEncodingLabel(chart, "x", xField), type: chartWidgetColumnType(chartEncoding(chart, "x"), rows[0]?.[xField]) },
 { key: "series", label: "Series", type: "text" },
-{ key: "value", label: chartEncodingLabel(chart, "y", "Value"), type: "number", unit }
+{ key: "value", label: chartEncodingLabel(chart, "y", "Value"), type: "number", ...yFormatSpec, unit }
 ],
 row_count: longRows.length,
 rows: longRows,
@@ -2098,7 +2278,7 @@ intent: chart.intent ?? "custom",
 visualization_type: chart.type,
 encodings: {
 x: { field: xField, type: chartEncoding(chart, "x").type ?? "nominal" },
-y: { aggregate: "sum", field: "value", type: "quantitative", unit },
+y: { aggregate: "sum", field: "value", type: "quantitative", ...yFormatSpec, unit },
 color: { field: "series", type: "nominal" }
 },
 presentation: {
@@ -2136,19 +2316,23 @@ if (encodedPayload)
 return encodedPayload;
 return null;
 }
-function TableContent({ allowColumnResize = true, columnWidths, density, filters, onColumnWidthsChange, selectedFilters, snapshot, table, isFullscreen = false }) {
+function TableContent({ allowColumnResize = true, columnWidths, density, fillAvailableWidth = true, filters, onColumnWidthsChange, pageSize: requestedPageSize = TABLE_CARD_PAGE_SIZE, selectedFilters, snapshot, table, isFullscreen = false }) {
 const rows = filterRowsForDataset(getRows(snapshot, table.dataset), table.dataset, filters, selectedFilters, table.columns.map((column) => column.field));
 const [page, setPage] = useState(0);
-const [sortState, setSortState] = useState(null);
+const [sortState, setSortState] = useState(() => tableDefaultSort(table));
 const [isColumnResizing, setIsColumnResizing] = useState(false);
+const [tableViewportWidth, setTableViewportWidth] = useState(0);
+const [horizontalScrollEdges, setHorizontalScrollEdges] = useState(EMPTY_HORIZONTAL_SCROLL_EDGES);
 const headerCellRefs = useRef({});
+const tableElementRef = useRef(null);
 const tableWrapRef = useRef(null);
+const tableScrollContentRef = useRef(null);
 const sortedRows = useMemo(() => {
 if (!sortState)
 return rows;
 return [...rows].sort((a, b) => compareTableValues(a, b, sortState.field, sortState.direction));
 }, [rows, sortState]);
-const pageSize = isFullscreen ? Math.max(1, sortedRows.length) : TABLE_CARD_PAGE_SIZE;
+const pageSize = isFullscreen ? Math.max(1, sortedRows.length) : Math.max(1, requestedPageSize);
 const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
 const currentPage = Math.min(page, totalPages - 1);
 const shouldShowPagination = rows.length > 0 && !isFullscreen && totalPages > 1;
@@ -2165,20 +2349,96 @@ column.field,
 clamp(Math.round(columnWidths[column.field] ?? estimatedColumnWidths[column.field] ?? TABLE_COLUMN_DEFAULT_WIDTH), TABLE_COLUMN_MIN_WIDTH, TABLE_COLUMN_MAX_WIDTH)
 ]));
 }, [columnWidths, estimatedColumnWidths, table.columns]);
-const tablePixelWidth = table.columns.reduce((total, column) => total + activeColumnWidths[column.field], 0);
+const hasContentSizedColumns = table.columns.some((column) => column.sizing === "content");
+const shouldFillAvailableWidth = isFullscreen || fillAvailableWidth;
+const tableSizing = calculateTableSizing(table.columns, activeColumnWidths, tableViewportWidth, shouldFillAvailableWidth);
+const renderedColumnWidths = tableSizing.columnWidths;
 const tableStyle = {
-minWidth: `${tablePixelWidth}px`,
+minWidth: `${tableSizing.minimumTableWidth}px`,
 tableLayout: "fixed",
-width: `${tablePixelWidth}px`
+width: `${tableSizing.tableWidth}px`
 };
+const updateHorizontalScrollEdges = useCallback(() => {
+const tableWrap = tableWrapRef.current;
+const nextEdges = tableWrap
+? {
+...calculateHorizontalScrollEdges({
+clientWidth: tableWrap.clientWidth,
+scrollLeft: tableWrap.scrollLeft,
+scrollWidth: tableElementRef.current?.offsetWidth ?? tableWrap.scrollWidth
+}),
+scrollbarBlockSize: Math.max(0, tableWrap.offsetHeight - tableWrap.clientHeight),
+scrollbarInlineSize: Math.max(0, tableWrap.offsetWidth - tableWrap.clientWidth)
+}
+: EMPTY_HORIZONTAL_SCROLL_EDGES;
+setHorizontalScrollEdges((currentEdges) => currentEdges.canScrollLeft === nextEdges.canScrollLeft &&
+currentEdges.canScrollRight === nextEdges.canScrollRight &&
+currentEdges.hasOverflow === nextEdges.hasOverflow &&
+currentEdges.scrollbarBlockSize === nextEdges.scrollbarBlockSize &&
+currentEdges.scrollbarInlineSize === nextEdges.scrollbarInlineSize
+? currentEdges
+: nextEdges);
+}, []);
+function columnWidthStyle(column) {
+return {
+...(column.sizing === "content" ? { maxWidth: `${TABLE_COLUMN_CONTENT_FIT_MAX_WIDTH}px` } : {}),
+width: `${renderedColumnWidths[column.field]}px`
+};
+}
 useEffect(() => {
 setPage(0);
-}, [isFullscreen, rows.length, sortState]);
+}, [isFullscreen, requestedPageSize, rows.length, sortState]);
+useEffect(() => {
+setSortState(tableDefaultSort(table));
+}, [table.defaultSort?.direction, table.defaultSort?.field, table.id]);
 useLayoutEffect(() => {
 if (tableWrapRef.current) {
 tableWrapRef.current.scrollLeft = 0;
+updateHorizontalScrollEdges();
 }
-}, [isFullscreen, rows.length, table.id]);
+}, [isFullscreen, rows.length, table.id, updateHorizontalScrollEdges]);
+useLayoutEffect(() => {
+if (!shouldFillAvailableWidth || !tableWrapRef.current) {
+setTableViewportWidth(0);
+return undefined;
+}
+const tableWrap = tableWrapRef.current;
+const updateViewportWidth = () => setTableViewportWidth(Math.floor(tableWrap.clientWidth));
+updateViewportWidth();
+if (typeof ResizeObserver !== "function")
+return undefined;
+const observer = new ResizeObserver(updateViewportWidth);
+observer.observe(tableWrap);
+return () => observer.disconnect();
+}, [shouldFillAvailableWidth, table.id]);
+useLayoutEffect(() => {
+const tableWrap = tableWrapRef.current;
+const tableScrollContent = tableScrollContentRef.current;
+const tableElement = tableElementRef.current;
+if (!tableWrap) {
+setHorizontalScrollEdges(EMPTY_HORIZONTAL_SCROLL_EDGES);
+return undefined;
+}
+updateHorizontalScrollEdges();
+tableWrap.addEventListener("scroll", updateHorizontalScrollEdges, { passive: true });
+if (typeof ResizeObserver !== "function") {
+window.addEventListener("resize", updateHorizontalScrollEdges);
+return () => {
+tableWrap.removeEventListener("scroll", updateHorizontalScrollEdges);
+window.removeEventListener("resize", updateHorizontalScrollEdges);
+};
+}
+const observer = new ResizeObserver(updateHorizontalScrollEdges);
+observer.observe(tableWrap);
+if (tableScrollContent)
+observer.observe(tableScrollContent);
+if (tableElement)
+observer.observe(tableElement);
+return () => {
+observer.disconnect();
+tableWrap.removeEventListener("scroll", updateHorizontalScrollEdges);
+};
+}, [isFullscreen, rows.length, table.id, tableSizing.tableWidth, updateHorizontalScrollEdges]);
 function toggleSort(field) {
 setSortState((current) => {
 if (current?.field !== field)
@@ -2240,12 +2500,18 @@ event.preventDefault();
 event.stopPropagation();
 resizeColumnBy(field, event.key === "ArrowRight" ? TABLE_COLUMN_KEYBOARD_STEP : -TABLE_COLUMN_KEYBOARD_STEP, true);
 }
+const isScrollableTableRegion = isFullscreen || horizontalScrollEdges.hasOverflow;
+const tableScrollShellStyle = {
+"--table-scrollbar-block-size": `${horizontalScrollEdges.scrollbarBlockSize}px`,
+"--table-scrollbar-inline-size": `${horizontalScrollEdges.scrollbarInlineSize}px`
+};
 return (<>
-{rows.length ? (<div className={`table-wrap table-density-${density} ${isFullscreen ? "fullscreen" : ""}`} ref={tableWrapRef}>
-<div className="table-scroll-content">
-<table className={`data-table data-table-${density} data-table-resizable ${isColumnResizing ? "is-column-resizing" : ""}`} style={tableStyle}>
+{rows.length ? (<div className={`table-scroll-shell ${isFullscreen ? "is-fullscreen" : ""}`} data-can-scroll-left={horizontalScrollEdges.canScrollLeft ? "true" : "false"} data-can-scroll-right={horizontalScrollEdges.canScrollRight ? "true" : "false"} style={tableScrollShellStyle}>
+<div aria-label={isScrollableTableRegion ? `Scrollable table: ${table.title}` : undefined} className={`table-wrap table-density-${density} ${isFullscreen ? "fullscreen" : ""}`} ref={tableWrapRef} role={isScrollableTableRegion ? "region" : undefined} tabIndex={isScrollableTableRegion ? 0 : undefined}>
+<div className="table-scroll-content" ref={tableScrollContentRef}>
+<table className={`data-table data-table-${density} data-table-resizable ${hasContentSizedColumns ? "data-table-smart-layout" : ""} ${isColumnResizing ? "is-column-resizing" : ""}`} ref={tableElementRef} style={tableStyle}>
 <colgroup>
-{table.columns.map((column) => (<col key={column.field} style={{ width: `${activeColumnWidths[column.field]}px` }}/>))}
+{table.columns.map((column) => (<col className={column.sizing === "content" ? "table-column-content-fit" : undefined} key={column.field} style={columnWidthStyle(column)}/>))}
 </colgroup>
 <thead>
 <tr>
@@ -2255,13 +2521,18 @@ const format = tableColumnFormat(column);
 const isNumericColumn = isNumericTableColumn(column, rows);
 const isCenteredColumn = column.align === "center";
 const SortIcon = isSorted ? (sortState.direction === "asc" ? ArrowUp : ArrowDown) : null;
+const headerClassName = [
+isNumericColumn ? "table-header-number" : "",
+isCenteredColumn ? "center" : "",
+column.sizing === "content" ? "table-column-content-fit" : ""
+].filter(Boolean).join(" ") || undefined;
 return (<th aria-sort={isSorted
 ? sortState.direction === "asc"
 ? "ascending"
 : "descending"
 : "none"} key={column.field} ref={(element) => {
 headerCellRefs.current[column.field] = element;
-}} className={isNumericColumn ? "table-header-number" : isCenteredColumn ? "center" : undefined} style={{ width: `${activeColumnWidths[column.field]}px` }}>
+}} className={headerClassName} style={columnWidthStyle(column)}>
 <button className="table-sort-button" onClick={() => toggleSort(column.field)} type="button">
 <span>{column.label}</span>
 {SortIcon ? <SortIcon aria-hidden="true" size={14} strokeWidth={2}/> : null}
@@ -2281,6 +2552,7 @@ const isCenteredColumn = column.align === "center";
 const className = [
 isNumericColumn ? "table-cell-number" : "",
 isCenteredColumn ? "center" : "",
+column.sizing === "content" ? "table-column-content-fit" : "",
 tableCellMovementClass(column, value)
 ].filter(Boolean).join(" ") || undefined;
 return (<td className={className} key={column.field}>
@@ -2291,6 +2563,9 @@ return (<td className={className} key={column.field}>
 </tbody>
 </table>
 </div>
+</div>
+<span aria-hidden="true" className="table-scroll-edge table-scroll-edge-left" data-image-export-exclude="true"/>
+<span aria-hidden="true" className="table-scroll-edge table-scroll-edge-right" data-image-export-exclude="true"/>
 </div>) : (<div className="empty-state">No rows match the selected filters.</div>)}
 {shouldShowFooter ? (<div className="table-pagination">
 {shouldShowCount ? <span className="table-result-count">{resultCountLabel}</span> : null}
@@ -2357,19 +2632,19 @@ source,
 sourceQuery,
 snapshot
 });
-useModalScrollLock(kind === "source");
+useModalScrollLock(true);
 useEffect(() => {
 const dialog = dialogRef.current;
 if (dialog && !dialog.open) {
 dialog.showModal();
 }
 }, []);
-return (<dialog aria-labelledby="table-modal-title" className={`native-modal ${kind === "source" ? "source-modal" : ""}`.trim()} onCancel={onClose} onClick={(event) => {
+return (<dialog aria-labelledby="table-modal-title" className={`native-modal ${kind === "source" ? "source-modal" : "table-fullscreen-modal"}`.trim()} onCancel={onClose} onClick={(event) => {
 if (event.target === event.currentTarget) {
 event.currentTarget.close();
 }
 }} onClose={onClose} ref={dialogRef}>
-<section className={`modal-panel ${kind === "source" ? "source-modal-panel" : ""}`.trim()}>
+<section className={`modal-panel ${kind === "source" ? "source-modal-panel" : "table-fullscreen-panel"}`.trim()}>
 <div className="modal-header">
 <div>
 <h2 id="table-modal-title">{title}</h2>
@@ -2379,8 +2654,8 @@ event.currentTarget.close();
 <X aria-hidden="true" size={20} strokeWidth={2}/>
 </button>
 </div>
-{kind === "fullscreen" ? (<TableContent columnWidths={columnWidths} density={table.density ?? (manifest?.surface === "report" ? "spacious" : "dense")} filters={filters} isFullscreen onColumnWidthsChange={onColumnWidthsChange} selectedFilters={selectedFilters} snapshot={snapshot} table={table}/>) : (<DataSourceDetails details={buildDetails} source={source} sourceQuery={sourceQuery}>
-<SourceDataTable columns={table.columns} dataset={table.dataset} density={table.density ?? (manifest?.surface === "report" ? "spacious" : "dense")} rows={previewRows}/>
+{kind === "fullscreen" ? (<TableContent columnWidths={columnWidths} density={table.density ?? (manifest?.surface === "report" ? "spacious" : "dense")} filters={filters} isFullscreen onColumnWidthsChange={onColumnWidthsChange} selectedFilters={selectedFilters} snapshot={snapshot} table={table}/>) : (<DataSourceDetails details={buildDetails} itemLabel={table.title} itemType="Table" source={source} sourceQuery={sourceQuery}>
+<SourceDataTable columns={table.columns} dataset={table.dataset} density={table.density ?? (manifest?.surface === "report" ? "spacious" : "dense")} pageSize={SOURCE_DATA_PREVIEW_PAGE_SIZE} rows={previewRows}/>
 </DataSourceDetails>)}
 </section>
 </dialog>);
@@ -2520,61 +2795,31 @@ toggleMenu();
 {isEditMode ? (<textarea aria-label={`Edit HTML for ${title}`} className="report-html-editor" onChange={(event) => onHtmlChange(block.id, { html: event.target.value })} spellCheck={false} value={html}/>) : (<iframe className="report-html-frame" onLoad={handleFrameLoad} ref={frameRef} sandbox="allow-same-origin" srcDoc={sandboxedReportHtml(html)} style={frameHeight ? { height: `${frameHeight}px` } : undefined} title={title}/>)}
 </section>);
 }
-function ReportMetricStripBlock({ cards, filters, id, isMenuOpen, onCopyResult, onDeleteBlock, onMenuOpenChange, selectedFilters, snapshot }) {
-const cardRef = useRef(null);
+function ArtifactMetricCard({ card, filters, id, isMenuOpen, onDeleteBlock, onMenuOpenChange, onSourceOpen, selectedFilters, snapshot }) {
 const { closeMenu, fixedMenuStyle, handleMenuButtonKeyDown, handleMenuKeyDown, menuButtonRef, menuMotionClass, menuRef, toggleMenu, shouldRenderMenu } = useDashboardMenu(isMenuOpen, onMenuOpenChange);
-const { getPreparedImageBlob, preparedImageExportStatus, prepareImageExport, resetPreparedImageExport } = usePreparedImageExport(cardRef);
-function prepareImageExportQuietly(force = false) {
-if (!shouldOfferImageClipboardCopy())
-return;
-const prepared = prepareImageExport({ force });
-if (prepared)
-void prepared.promise.catch(() => undefined);
-}
-async function handleCopyAsImage() {
-if (!cardRef.current)
-return;
-try {
-const copyResult = await copyElementAsImage(cardRef.current, getPreparedImageBlob());
-resetPreparedImageExport();
-onCopyResult(imageCopySuccessMessage("Copied key metrics as image.", copyResult));
-}
-catch (error) {
-onCopyResult(error instanceof Error ? error.message : "Failed to copy image.", true);
-}
-}
-const menuItem = (label, icon, onClick, tone = "default", onPrepare, disabled = false) => (<button className={`viz-card-menu-item ${tone === "danger" ? "viz-card-menu-item-danger" : ""}`.trim()} disabled={disabled} key={label} onFocus={onPrepare} onClick={() => {
+const label = cardLabel(card);
+const menuItem = (itemLabel, icon, onClick, tone = "default") => (<button className={`viz-card-menu-item ${tone === "danger" ? "viz-card-menu-item-danger" : ""}`.trim()} key={itemLabel} onClick={() => {
 void onClick();
 closeMenu();
-}} onPointerEnter={onPrepare} role="menuitem" type="button">
+}} role="menuitem" type="button">
 <span aria-hidden="true" className="viz-card-menu-icon">
 {icon}
 </span>
-<span>{label}</span>
+<span>{itemLabel}</span>
 </button>);
-return (<section className="report-metric-strip-block" id={id} ref={cardRef}>
-<div className="viz-card-actions" data-image-export-exclude="true" ref={menuRef}>
-<button aria-expanded={isMenuOpen} aria-label="Open options for key metrics" className="viz-card-menu-button viz-card__no-drag" onClick={(event) => {
+const action = (<div className="viz-card-actions" data-image-export-exclude="true" ref={menuRef}>
+<button aria-expanded={isMenuOpen} aria-label={`Open options for ${label}`} className="viz-card-menu-button viz-card__no-drag" onClick={(event) => {
 event.stopPropagation();
-const nextIsMenuOpen = toggleMenu();
-if (nextIsMenuOpen) {
-prepareImageExportQuietly(true);
-}
-else {
-resetPreparedImageExport();
-}
-}} onFocus={() => prepareImageExportQuietly()} onKeyDown={handleMenuButtonKeyDown} onPointerEnter={() => prepareImageExportQuietly()} ref={menuButtonRef} type="button">
+toggleMenu();
+}} onKeyDown={handleMenuButtonKeyDown} ref={menuButtonRef} type="button">
 <Ellipsis aria-hidden="true" size={18} strokeWidth={2}/>
 </button>
 {shouldRenderMenu ? (<div className={`viz-card-menu viz-card__no-drag menu-surface ${menuMotionClass}`} onKeyDown={handleMenuKeyDown} role="menu" style={fixedMenuStyle}>
-{shouldOfferImageClipboardCopy()
-? menuItem("Copy as image", <Camera size={18} strokeWidth={2}/>, handleCopyAsImage, "default", prepareImageExportQuietly, preparedImageExportStatus === "pending")
-: null}
-{menuItem("Delete", <Trash2 size={18} strokeWidth={2}/>, onDeleteBlock, "danger")}
+{menuItem("View data source", <Database size={18} strokeWidth={2}/>, onSourceOpen)}
+{onDeleteBlock ? menuItem("Delete", <Trash2 size={18} strokeWidth={2}/>, onDeleteBlock, "danger") : null}
 </div>) : null}
-</div>
-<KpiStrip cards={cards} filters={filters} selectedFilters={selectedFilters} snapshot={snapshot}/>
-</section>);
+</div>);
+return (<KpiCard action={action} card={card} className="report-metric-card" filters={filters} id={id} selectedFilters={selectedFilters} snapshot={snapshot}/>);
 }
 function ReportBlockCard({ accessIssues, block, blockTextOverride, chart, chartSpecOverride, chartTextOverride, chartTypeOverride, columnWidths, filters, isBlockMenuOpen, isChartMenuOpen, isEditMode, isTableMenuOpen, layout, manifest, onBlockMenuOpenChange, onBlockTextChange, onChartTypeChange, onChartMenuOpenChange, onColumnWidthsChange, onDeleteBlock, onChartModalOpen, onCopyResult, onRequestEditMode, onTableMenuOpenChange, onTableModalOpen, onTableTextChange, onTextChange, selectedFilters, snapshot, table, tableTextOverride }) {
 if (block.type === "html") {
@@ -2730,28 +2975,36 @@ setOptionalCodexSearchParam(url, "originUrl", packageInfo?.originUrl);
 setOptionalCodexSearchParam(url, "path", packageInfo?.root);
 return url.toString();
 }
-function codexHostPromptPayload(prompt, packageInfo) {
+function codexHostPromptPayload(prompt, title) {
+return title ? { prompt, title } : { prompt };
+}
+function codexMessagePayload(prompt) {
 return {
-originUrl: packageInfo?.originUrl,
-path: packageInfo?.root,
-prompt
+role: "user",
+content: [{ type: "text", text: prompt }]
 };
 }
-function sendCodexPromptToHost(prompt, packageInfo) {
+async function sendCodexPromptToHost(prompt, title) {
 const hostApi = window.openai;
-const payload = codexHostPromptPayload(prompt, packageInfo);
-const launchers = [hostApi?.sendFollowUpMessage, hostApi?.openCodexPrompt];
-for (const launch of launchers) {
-if (typeof launch !== "function")
-continue;
+if (typeof hostApi?.sendFollowUpMessage === "function") {
 try {
-void Promise.resolve(launch.call(hostApi, payload)).catch(() => { });
-return true;
+const result = await hostApi.sendFollowUpMessage(codexHostPromptPayload(prompt, title));
+return result?.isError !== true;
 }
 catch {
-}
-}
 return false;
+}
+}
+if (typeof hostApi?.sendMessage === "function") {
+try {
+const result = await hostApi.sendMessage(codexMessagePayload(prompt));
+return result?.isError !== true;
+}
+catch {
+return false;
+}
+}
+return null;
 }
 function isLocalPreviewHost() {
 return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
@@ -2783,36 +3036,70 @@ catch {
 }
 return linkClicked;
 }
-function openCodexPrompt(prompt, packageInfo, onCopyResult) {
-const url = codexPromptUrl(prompt, packageInfo);
-const launched = launchCodexDeepLink(url);
-const sentToHost = sendCodexPromptToHost(prompt, packageInfo);
-const openedCodex = sentToHost || launched;
-void copyTextToClipboard(prompt)
-.then(() => {
-onCopyResult(sentToHost
-? "Started in this chat."
-: openedCodex
-? "Codex prompt copied. Opening Codex if supported."
-: "Prompt copied. Open Codex and paste it to continue.", false);
-})
-.catch(() => {
-onCopyResult(openedCodex
-? "Opening Codex if supported, but prompt copy was blocked."
-: "Could not copy the Codex prompt from this preview.", true);
-});
+function isPublishedArtifactSite(packageInfo) {
+return packageInfo?.hostedReadOnly === true || packageInfo?.deliveryMode === "site_creator";
 }
-function AnalyticsTopBarFreshness({ dateLabel, onRefresh, status, statusLabel }) {
-const refreshTitle = dateLabel === "Unknown"
-? "Refresh using latest available data."
-: `Refresh using latest available data. Last updated ${dateLabel}.`;
+async function submitCodexPrompt(prompt, title, packageInfo, onResult) {
+const sentToHost = await sendCodexPromptToHost(prompt, title);
+if (sentToHost === true) {
+onResult(`Sent to Codex: ${title}.`, false);
+return;
+}
+if (sentToHost === false) {
+onResult("Codex did not accept the request.", true);
+return;
+}
+const clipboardFallback = isPublishedArtifactSite(packageInfo)
+? copyTextToClipboard(prompt)
+: null;
+const launched = launchCodexDeepLink(codexPromptUrl(prompt, packageInfo));
+if (clipboardFallback) {
+try {
+await clipboardFallback;
+onResult(launched
+? `Prompt copied. Opening Codex: ${title}.`
+: "Prompt copied. Open Codex and paste it to continue.", false);
+}
+catch {
+onResult(launched
+? `Opening Codex: ${title}. Prompt copy was blocked.`
+: "Could not copy the prompt from this published site.", !launched);
+}
+return;
+}
+onResult(launched
+? `Opening Codex: ${title}.`
+: "Open this app inside Codex to continue.", !launched);
+}
+function AnalyticsTopBarFreshness({ dateLabel, onRefresh, status, statusLabel, surfaceLabel }) {
+const tooltipId = useId();
+const refreshButtonRef = useRef(null);
+const [tooltipLeft, setTooltipLeft] = useState(12);
 const refreshLabel = dateLabel === "Unknown" ? "Refresh" : dateLabel;
+const statusDescription = statusLabel ? ` Status: ${statusLabel}.` : "";
+const refreshDescription = dateLabel === "Unknown"
+? `Last refresh date unavailable. Click to ask Codex to refresh this ${surfaceLabel}.${statusDescription}`
+: `Last refreshed ${dateLabel}. Click to ask Codex to refresh this ${surfaceLabel}.${statusDescription}`;
+const positionRefreshTooltip = useCallback(() => {
+const buttonRect = refreshButtonRef.current?.getBoundingClientRect();
+if (!buttonRect) return;
+const viewportPadding = 12;
+const tooltipWidth = Math.min(320, Math.max(0, window.innerWidth - (viewportPadding * 2)));
+const maxLeft = Math.max(viewportPadding, window.innerWidth - tooltipWidth - viewportPadding);
+setTooltipLeft(Math.min(Math.max(buttonRect.left, viewportPadding), maxLeft));
+}, []);
+useEffect(() => {
+window.addEventListener("resize", positionRefreshTooltip);
+return () => window.removeEventListener("resize", positionRefreshTooltip);
+}, [positionRefreshTooltip]);
 return (<div className="analytics-top-bar-freshness">
-<button aria-label={refreshTitle} className="top-bar-button top-bar-button-ghost top-bar-refresh-button" onClick={onRefresh} title={refreshTitle} type="button">
-<RefreshCw aria-hidden="true" size={14} strokeWidth={2}/>
-<span>{refreshLabel}</span>
-{statusLabel ? <span className={`snapshot-status ${status}`}>{statusLabel}</span> : null}
+<span className="top-bar-refresh-tooltip-anchor" onFocus={positionRefreshTooltip} onMouseEnter={positionRefreshTooltip}>
+<button ref={refreshButtonRef} aria-describedby={tooltipId} aria-label={`Refresh ${surfaceLabel}`} className="top-bar-refresh-datetime" onClick={onRefresh} type="button">
+<span className="top-bar-refresh-text">{refreshLabel}</span>
 </button>
+<span className="top-bar-refresh-tooltip" id={tooltipId} role="tooltip" style={{ left: tooltipLeft }}>{refreshDescription}</span>
+</span>
+{statusLabel ? <span className={`snapshot-status ${status}`}>{statusLabel}</span> : null}
 </div>);
 }
 function AnalyticsTopBar({ chrome = "full", isEditMode, onCancelEdit, manifest, onCopyResult, onEdit, onRequestFullscreen, onSaveEdit, onTitleChange, packageInfo, snapshot, title }) {
@@ -2827,15 +3114,28 @@ const showStatusLabel = manifest?.surface !== "report" && statusLabel;
 const showActions = chrome === "full";
 const showInlineExpand = chrome === "inline" && typeof onRequestFullscreen === "function";
 function requestRefresh() {
-void openCodexPrompt(refreshPrompt(manifest, snapshot, packageInfo), packageInfo, onCopyResult);
+void submitCodexPrompt(
+refreshPrompt(manifest, snapshot, packageInfo),
+`Refresh ${appSurfaceLabel(manifest)}`,
+packageInfo,
+onCopyResult
+);
 }
 function requestExport(target) {
 closeMenu();
-void openCodexPrompt(exportPrompt(target, manifest, snapshot, packageInfo), packageInfo, onCopyResult);
+void submitCodexPrompt(
+exportPrompt(target, manifest, snapshot, packageInfo),
+`Export ${appSurfaceLabel(manifest)} as ${EXPORT_TARGET_LABELS[target]}`,
+packageInfo,
+onCopyResult
+);
 }
 return (<div className="analytics-top-bar" aria-label={`${appSurfaceLabel(manifest)} actions`}>
+<div className="analytics-top-bar-leading">
 <div className="analytics-top-bar-title">
 <EditablePageTitle ariaLabel={`Edit ${appSurfaceLabel(manifest)} title`} isEditMode={isEditMode} onChange={onTitleChange} onRequestEditMode={onEdit} placeholder={composePageTitle(manifest)} readOnly={!showActions || !capabilities.canEdit} title={title}/>
+</div>
+{showActions ? <AnalyticsTopBarFreshness dateLabel={dateLabel} onRefresh={requestRefresh} status={snapshot?.status} statusLabel={showStatusLabel ? statusLabel : null} surfaceLabel={appSurfaceLabel(manifest)}/> : null}
 </div>
 {showInlineExpand ? (<div className="analytics-top-bar-actions">
 <button aria-label={`Expand ${appSurfaceLabel(manifest)} fullscreen`} className="top-bar-button" onClick={onRequestFullscreen} title={`Expand ${appSurfaceLabel(manifest)} fullscreen`} type="button">
@@ -2843,7 +3143,6 @@ return (<div className="analytics-top-bar" aria-label={`${appSurfaceLabel(manife
 <span>Expand</span>
 </button>
 </div>) : showActions ? (<div className="analytics-top-bar-actions">
-<AnalyticsTopBarFreshness dateLabel={dateLabel} onRefresh={requestRefresh} status={snapshot?.status} statusLabel={showStatusLabel ? statusLabel : null}/>
 {isEditMode && capabilities.canEdit ? (<>
 <button className="top-bar-button" onClick={onCancelEdit} type="button">
 <span>Cancel</span>
@@ -2852,17 +3151,10 @@ return (<div className="analytics-top-bar" aria-label={`${appSurfaceLabel(manife
 <span>Save changes</span>
 </button>
 </>) : (<>
-{capabilities.canEdit ? (
-<button className="top-bar-button top-bar-edit-button" onClick={onEdit} type="button">
-<Pencil aria-hidden="true" size={14} strokeWidth={2}/>
-<span>Edit</span>
-</button>
-): null}
 {exportTargets.length ? (
 <div className="export-menu">
-<button ref={menuButtonRef} aria-expanded={isExportMenuOpen} aria-haspopup="menu" className="top-bar-button" onClick={toggleMenu} onKeyDown={handleMenuButtonKeyDown} type="button">
-<span>Export</span>
-<ChevronDown aria-hidden="true" size={14} strokeWidth={2}/>
+<button ref={menuButtonRef} aria-expanded={isExportMenuOpen} aria-haspopup="menu" aria-label={`More ${appSurfaceLabel(manifest)} actions`} className="top-bar-button top-bar-button-ghost top-bar-overflow-button" onClick={toggleMenu} onKeyDown={handleMenuButtonKeyDown} type="button">
+<Ellipsis aria-hidden="true" size={18} strokeWidth={2}/>
 </button>
 {shouldRenderMenu ? (<div ref={menuRef} className={`export-menu-list menu-surface ${menuMotionClass}`} onKeyDown={handleMenuKeyDown} role="menu" style={fixedMenuStyle}>
 {exportTargets.map((target) => (<button className="export-menu-item" key={target} onClick={() => requestExport(target)} role="menuitem" type="button">
@@ -2871,6 +3163,12 @@ return (<div className="analytics-top-bar" aria-label={`${appSurfaceLabel(manife
 </button>))}
 </div>) : null}
 </div>
+): null}
+{capabilities.canEdit ? (
+<button className="top-bar-button top-bar-edit-button" onClick={onEdit} type="button">
+<Pencil aria-hidden="true" size={16} strokeWidth={2}/>
+<span>Edit</span>
+</button>
 ): null}
 </>)}
 </div>) : null}
@@ -2893,6 +3191,7 @@ const [deletedReportBlockIds, setDeletedReportBlockIds] = useState([]);
 const [openMenuChartId, setOpenMenuChartId] = useState(null);
 const [openMenuTableId, setOpenMenuTableId] = useState(null);
 const [openMenuBlockId, setOpenMenuBlockId] = useState(null);
+const [cardSourceModal, setCardSourceModal] = useState(null);
 const [chartModal, setChartModal] = useState(null);
 const [tableModal, setTableModal] = useState(null);
 const [copyMessage, setCopyMessage] = useState(null);
@@ -2952,6 +3251,18 @@ const cardsById = useMemo(() => new Map(cards.map((card) => [card.id, card])), [
 const chartsById = useMemo(() => new Map(charts.map((chart) => [chart.id, chart])), [charts]);
 const tablesById = useMemo(() => new Map(tables.map((table) => [table.id, table])), [tables]);
 const reportGridBlocks = reportBlocks;
+const knownDeletableReportIds = useMemo(() => {
+const ids = [];
+for (const block of reportGridBlocks) {
+ids.push(block.id);
+if (block.type === "metric-strip") {
+for (const cardId of block.cardIds ?? []) {
+ids.push(metricCardBlockId(block.id, cardId));
+}
+}
+}
+return new Set(ids);
+}, [reportGridBlocks]);
 const visibleReportGridBlocks = useMemo(() => {
 if (!deletedReportBlockIds.length)
 return reportGridBlocks;
@@ -2970,16 +3281,15 @@ return;
 }
 try {
 const parsed = JSON.parse(stored);
-const knownIds = new Set(reportGridBlocks.map((block) => block.id));
 const nextIds = Array.isArray(parsed)
-? parsed.filter((id) => typeof id === "string" && knownIds.has(id))
+? parsed.filter((id) => typeof id === "string" && knownDeletableReportIds.has(id))
 : [];
 setDeletedReportBlockIds(nextIds);
 }
 catch {
 setDeletedReportBlockIds([]);
 }
-}, [deletedReportBlockStorageKey, reportGridBlocks]);
+}, [deletedReportBlockStorageKey, knownDeletableReportIds, reportGridBlocks]);
 useEffect(() => {
 if (!tables.length || !tableColumnWidthStorageKey) {
 setTableColumnWidths({});
@@ -3466,59 +3776,70 @@ function deleteReportBlock(blockId) {
 deleteReportBlocks([blockId]);
 }
 const dashboardContentBlocks = useMemo(() => {
-const chartBlocks = charts.map((chart) => ({
-className: "analytics-layout-item-chart",
-defaultLayout: dashboardCardLayout(chart.layout),
-id: `chart:${chart.id}`,
-render: (layout, { setLayout }) => {
-const overriddenChart = applyChartSpecOverride(chart, chartSpecOverrides[chart.id]);
-const chartRows = filterRowsForDataset(getRows(snapshot, overriddenChart.dataset), overriddenChart.dataset, activeSurfaceFilters, selectedFilters, chartUsedFields(overriddenChart));
-const chartTypeOptions = compatibleChartTypesForArtifactCard(overriddenChart, chartRows);
-const requestedType = chartTypeOverrides[chart.id] ?? overriddenChart.type;
-const activeType = chartTypeOptions.some((option) => option.type === requestedType)
-? requestedType
-: overriddenChart.type;
-const displayChart = withChartType(overriddenChart, activeType);
-const accessIssue = accessIssueForChart(displayChart, accessIssues);
-return (<VizCard accessIssue={accessIssue} chart={displayChart} chartTypeOptions={chartTypeOptions} isEditMode={activeEditMode} isMenuOpen={openMenuChartId === chart.id} layout={layout} onChartTypeChange={updateChartType} onCopyResult={(message, isError = false) => setCopyMessage({ isError, message })} onRequestEditMode={requestEditMode} onTextChange={updateChartText} onMenuOpenChange={(nextOpen) => {
-setOpenMenuTableId(null);
-setOpenMenuChartId(nextOpen ? chart.id : null);
-}} onModalOpen={setChartModal} textOverride={chartTextOverrides[chart.id]}>
-<ChartBody accessIssue={accessIssue} chart={displayChart} filters={activeSurfaceFilters} layout={layout} selectedFilters={selectedFilters} snapshot={snapshot}/>
-</VizCard>);
-}
-}));
-const tableBlocks = tables.map((table) => ({
-className: "analytics-layout-item-table",
-defaultLayout: dashboardCardLayout(table.layout ?? "full"),
-id: `table:${table.id}`,
-render: (layout) => (<DataTable columnWidths={tableColumnWidths[table.id] ?? {}} filters={activeSurfaceFilters} isEditMode={activeEditMode} isMenuOpen={openMenuTableId === table.id} layout={layout} manifest={manifest} onColumnWidthsChange={updateTableColumnWidths} onMenuOpenChange={(nextOpen) => {
+const deletedIds = new Set(deletedReportBlockIds);
+return visibleReportGridBlocks.flatMap((block) => {
+if (block.type === "metric-strip") {
+const metricCards = (block.cardIds ?? [])
+.map((cardId) => cardsById.get(cardId))
+.filter((card) => Boolean(card) && !deletedIds.has(metricCardBlockId(block.id, card.id)));
+return metricCards.map((card) => {
+const itemId = metricCardBlockId(block.id, card.id);
+return {
+className: "report-stack-item report-stack-item-metric-card",
+compactGroup: `metric-strip:${block.id}`,
+defaultLayout: "half",
+id: itemId,
+render: () => (<ArtifactMetricCard card={card} filters={activeSurfaceFilters} id={itemId} isMenuOpen={openMenuBlockId === itemId} onDeleteBlock={capabilities.canEdit ? () => deleteReportBlock(itemId) : undefined} onMenuOpenChange={(nextOpen) => {
 setOpenMenuChartId(null);
-setOpenMenuTableId(nextOpen ? table.id : null);
-}} onModalOpen={setTableModal} onRequestEditMode={requestEditMode} onTextChange={updateTableText} selectedFilters={selectedFilters} snapshot={snapshot} table={table} textOverride={tableTextOverrides[table.id]}/>)
-}));
-const htmlBlocks = visibleReportGridBlocks
-.filter((block) => block.type === "html")
-.map((block) => ({
-className: "analytics-layout-item-html",
-defaultLayout: dashboardCardLayout(block.layout ?? "full"),
-id: `html:${block.id}`,
-render: () => (<ReportHtmlBlock block={block} htmlOverride={blockTextOverrides[block.id]} isEditMode={activeEditMode} isMenuOpen={openMenuBlockId === block.id} onHtmlChange={updateBlockText} onCopyResult={(message, isError = false) => setCopyMessage({ isError, message })} onDeleteBlock={capabilities.canEdit ? () => deleteReportBlock(block.id) : undefined} onMenuOpenChange={(nextOpen) => {
+setOpenMenuTableId(null);
+setOpenMenuBlockId(nextOpen ? itemId : null);
+}} onSourceOpen={() => setCardSourceModal(card)} selectedFilters={selectedFilters} snapshot={snapshot}/>)
+};
+});
+}
+const chart = block.chartId ? chartsById.get(block.chartId) : undefined;
+const table = block.tableId ? tablesById.get(block.tableId) : undefined;
+const className = block.type === "chart"
+? "analytics-layout-item-chart"
+: block.type === "table"
+? "analytics-layout-item-table"
+: block.type === "html"
+? "analytics-layout-item-html"
+: `report-stack-item report-stack-item-${block.type}`;
+const defaultLayout = block.type === "chart"
+? dashboardCardLayout(block.layout ?? chart?.layout)
+: dashboardCardLayout(block.layout ?? table?.layout ?? "full");
+return [{
+className,
+defaultLayout,
+id: block.id,
+render: (layout) => (<ReportBlockCard accessIssues={accessIssues} block={block} blockTextOverride={blockTextOverrides[block.id]} chart={chart} chartSpecOverride={chart ? chartSpecOverrides[chart.id] : undefined} chartTextOverride={chart ? chartTextOverrides[chart.id] : undefined} chartTypeOverride={chart ? chartTypeOverrides[chart.id] : undefined} columnWidths={table ? tableColumnWidths[table.id] ?? {} : {}} filters={activeSurfaceFilters} isBlockMenuOpen={openMenuBlockId === block.id} isChartMenuOpen={Boolean(chart && openMenuChartId === chart.id)} isEditMode={activeEditMode} isTableMenuOpen={Boolean(table && openMenuTableId === table.id)} layout={layout} manifest={manifest} onBlockMenuOpenChange={(nextOpen) => {
 setOpenMenuChartId(null);
 setOpenMenuTableId(null);
 setOpenMenuBlockId(nextOpen ? block.id : null);
-}}/>)
-}));
-return [...chartBlocks, ...tableBlocks, ...htmlBlocks];
+}} onBlockTextChange={updateBlockText} onChartTypeChange={updateChartType} onChartMenuOpenChange={(nextOpen) => {
+setOpenMenuTableId(null);
+setOpenMenuBlockId(null);
+setOpenMenuChartId(chart && nextOpen ? chart.id : null);
+}} onChartModalOpen={setChartModal} onColumnWidthsChange={updateTableColumnWidths} onCopyResult={(message, isError = false) => setCopyMessage({ isError, message })} onDeleteBlock={capabilities.canEdit ? () => deleteReportBlock(block.id) : undefined} onRequestEditMode={requestEditMode} onTableMenuOpenChange={(nextOpen) => {
+setOpenMenuChartId(null);
+setOpenMenuBlockId(null);
+setOpenMenuTableId(table && nextOpen ? table.id : null);
+}} onTableModalOpen={setTableModal} onTableTextChange={updateTableText} onTextChange={updateChartText} selectedFilters={selectedFilters} snapshot={snapshot} table={table} tableTextOverride={table ? tableTextOverrides[table.id] : undefined}/>)
+}];
+});
 }, [
 accessIssues,
 activeSurfaceFilters,
 activeEditMode,
+blockTextOverrides,
+cardsById,
 capabilities.canEdit,
 chartTextOverrides,
 chartSpecOverrides,
 chartTypeOverrides,
-charts,
+chartsById,
+deletedReportBlockIds,
 manifest,
 openMenuBlockId,
 openMenuChartId,
@@ -3528,29 +3849,34 @@ selectedFilters,
 snapshot,
 tableColumnWidths,
 tableTextOverrides,
-tables,
+tablesById,
 visibleReportGridBlocks
 ]);
 const reportContentBlocks = useMemo(() => {
-return visibleReportGridBlocks.map((block) => {
+const deletedIds = new Set(deletedReportBlockIds);
+return visibleReportGridBlocks.flatMap((block) => {
 if (block.type === "metric-strip") {
 const metricCards = (block.cardIds ?? [])
 .map((cardId) => cardsById.get(cardId))
-.filter((card) => Boolean(card));
+.filter((card) => Boolean(card) && !deletedIds.has(metricCardBlockId(block.id, card.id)));
+return metricCards.map((card) => {
+const itemId = metricCardBlockId(block.id, card.id);
 return {
-className: "report-stack-item report-stack-item-metric-strip",
-defaultLayout: reportCardLayout(block.layout),
-id: block.id,
-render: () => (<ReportMetricStripBlock cards={metricCards} filters={activeSurfaceFilters} id={block.id} isMenuOpen={openMenuBlockId === block.id} onCopyResult={(message, isError = false) => setCopyMessage({ isError, message })} onDeleteBlock={capabilities.canEdit ? () => deleteReportBlock(block.id) : undefined} onMenuOpenChange={(nextOpen) => {
+className: "report-stack-item report-stack-item-metric-card",
+compactGroup: `metric-strip:${block.id}`,
+defaultLayout: "half",
+id: itemId,
+render: () => (<ArtifactMetricCard card={card} filters={activeSurfaceFilters} id={itemId} isMenuOpen={openMenuBlockId === itemId} onDeleteBlock={capabilities.canEdit ? () => deleteReportBlock(itemId) : undefined} onMenuOpenChange={(nextOpen) => {
 setOpenMenuChartId(null);
 setOpenMenuTableId(null);
-setOpenMenuBlockId(nextOpen ? block.id : null);
-}} selectedFilters={selectedFilters} snapshot={snapshot}/>)
+setOpenMenuBlockId(nextOpen ? itemId : null);
+}} onSourceOpen={() => setCardSourceModal(card)} selectedFilters={selectedFilters} snapshot={snapshot}/>)
 };
+});
 }
 const chart = block.chartId ? chartsById.get(block.chartId) : undefined;
 const table = block.tableId ? tablesById.get(block.tableId) : undefined;
-return {
+return [{
 className: `report-stack-item report-stack-item-${block.type}`,
 defaultLayout: reportCardLayout(block.layout),
 id: block.id,
@@ -3567,7 +3893,7 @@ setOpenMenuChartId(null);
 setOpenMenuBlockId(null);
 setOpenMenuTableId(table && nextOpen ? table.id : null);
 }} onTableModalOpen={setTableModal} onTableTextChange={updateTableText} onTextChange={updateChartText} selectedFilters={selectedFilters} snapshot={snapshot} table={table} tableTextOverride={table ? tableTextOverrides[table.id] : undefined}/>)
-};
+}];
 });
 }, [
 accessIssues,
@@ -3580,6 +3906,7 @@ chartSpecOverrides,
 chartTextOverrides,
 chartTypeOverrides,
 chartsById,
+deletedReportBlockIds,
 manifest,
 openMenuBlockId,
 openMenuChartId,
@@ -3633,13 +3960,14 @@ return (<DashboardShell isEditMode={activeEditMode} surface="report">
 {copyMessage.message}
 </div>) : null}
 
-<AnalyticsLayoutCanvas ariaLabel="Report blocks" blocks={reportContentBlocks} cancelSelector={CARD_DRAG_CANCEL_SELECTOR} className="report-content-grid report-block-stack" isEditMode={activeEditMode} layoutResetKey={layoutResetKey} onLayoutChange={recordReportLayoutDraft} storageKey={reportStorageKey}/>
+<AnalyticsLayoutCanvas ariaLabel="Report blocks" blocks={reportContentBlocks} cancelSelector={CARD_DRAG_CANCEL_SELECTOR} className="report-content-grid report-block-stack metric-card-layout" isEditMode={activeEditMode} layoutResetKey={layoutResetKey} onLayoutChange={recordReportLayoutDraft} storageKey={reportStorageKey}/>
 {activeChartModal ? (<ChartDetailPage accessIssue={accessIssueForChart(activeChartModal.chart, accessIssues)} chart={activeChartModal.chart} filters={activeSurfaceFilters} manifest={manifest} onChartSpecChange={updateChartSpec} onClose={() => setChartModal(null)} packageInfo={packageInfo} rows={chartModalRows} selectedFilters={selectedFilters} snapshot={snapshot}/>) : null}
 {chartModal?.kind === "source" && chartModalBaseChart ? (<ChartSourceModalDialog activeFilters={activeFilters} chart={{
 ...chartModalBaseChart,
 subtitle: chartModal.chart.subtitle,
 title: chartModal.chart.title
 }} manifest={manifest} onClose={() => setChartModal(null)} rows={chartModalRows} snapshot={snapshot}/>) : null}
+{cardSourceModal ? (<CardSourceModalDialog activeFilters={activeFilters} card={cardSourceModal} filters={activeSurfaceFilters} manifest={manifest} onClose={() => setCardSourceModal(null)} selectedFilters={selectedFilters} snapshot={snapshot}/>) : null}
 {tableModal ? (<TableModalDialog activeFilters={activeFilters} columnWidths={tableColumnWidths[tableModal.table.id] ?? {}} filters={activeSurfaceFilters} kind={tableModal.kind} manifest={manifest} onColumnWidthsChange={updateTableColumnWidths} onClose={() => setTableModal(null)} selectedFilters={selectedFilters} snapshot={snapshot} table={tableModal.table}/>) : null}
 </DashboardShell>);
 }
@@ -3652,15 +3980,14 @@ return (<DashboardShell isEditMode={activeEditMode} surface={manifest?.surface}>
 
 <FilterToolbar filters={activeSurfaceFilters} onChange={setSelectedFilters} selectedFilters={selectedFilters} snapshot={snapshot}/>
 
-<KpiStrip cards={cards} filters={activeSurfaceFilters} selectedFilters={selectedFilters} snapshot={snapshot}/>
-
-<AnalyticsLayoutCanvas ariaLabel="Dashboard content" blocks={dashboardContentBlocks} cancelSelector={CARD_DRAG_CANCEL_SELECTOR} className="dashboard-content-grid" isEditMode={activeEditMode} layoutResetKey={layoutResetKey} onLayoutChange={recordDashboardLayoutDraft} storageKey={storageKey}/>
+<AnalyticsLayoutCanvas ariaLabel="Dashboard content" blocks={dashboardContentBlocks} cancelSelector={CARD_DRAG_CANCEL_SELECTOR} className="dashboard-content-grid metric-card-layout" isEditMode={activeEditMode} layoutResetKey={layoutResetKey} onLayoutChange={recordDashboardLayoutDraft} storageKey={storageKey}/>
 {activeChartModal ? (<ChartDetailPage accessIssue={accessIssueForChart(activeChartModal.chart, accessIssues)} chart={activeChartModal.chart} filters={activeSurfaceFilters} manifest={manifest} onChartSpecChange={updateChartSpec} onClose={() => setChartModal(null)} packageInfo={packageInfo} rows={chartModalRows} selectedFilters={selectedFilters} snapshot={snapshot}/>) : null}
 {chartModal?.kind === "source" && chartModalBaseChart ? (<ChartSourceModalDialog activeFilters={activeFilters} chart={{
 ...chartModalBaseChart,
 subtitle: chartModal.chart.subtitle,
 title: chartModal.chart.title
 }} manifest={manifest} onClose={() => setChartModal(null)} rows={chartModalRows} snapshot={snapshot}/>) : null}
+{cardSourceModal ? (<CardSourceModalDialog activeFilters={activeFilters} card={cardSourceModal} filters={activeSurfaceFilters} manifest={manifest} onClose={() => setCardSourceModal(null)} selectedFilters={selectedFilters} snapshot={snapshot}/>) : null}
 {tableModal ? (<TableModalDialog activeFilters={activeFilters} columnWidths={tableColumnWidths[tableModal.table.id] ?? {}} filters={activeSurfaceFilters} kind={tableModal.kind} manifest={manifest} onColumnWidthsChange={updateTableColumnWidths} onClose={() => setTableModal(null)} selectedFilters={selectedFilters} snapshot={snapshot} table={tableModal.table}/>) : null}
 </DashboardShell>);
 }

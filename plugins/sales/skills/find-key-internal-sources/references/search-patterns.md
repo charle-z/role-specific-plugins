@@ -1,7 +1,7 @@
 # Search Patterns
 
 ## Purpose
-Use these patterns to produce high-quality queries across `internal_messaging` and `document_store` when the focused workflow needs fan-out. These are optional expansion patterns, not a requirement to exhaust every variant before answering.
+Use these patterns to produce high-quality queries across ~~Internal Messaging and ~~Knowledge & Files when the focused workflow needs fan-out. These are optional expansion patterns, not a requirement to exhaust every variant before answering.
 
 ## Query Construction
 
@@ -41,11 +41,11 @@ Run only the variants needed for the selected answer route and current confidenc
 
 4. Route: `"<team_or_product>" "field guide"`, `"<team_or_product>" "GTM"`, `"<team_or_product>" "specialist"`, `"<control_or_process>" "source of truth"`, and `"<control_or_process>" "escalation"` when those facets exist.
 
-If the source supports semantic search, keep queries short and topical. If the source is lexical-heavy, include explicit aliases and abbreviations. After the bounded generic pass, apply org-specific expansions from user-provided context, connector-visible source truth, or Sales plugin-scoped user context read through `user-context` using the rules in `company-context.md` only when those expansions are likely to change the recommended route.
+If the source supports semantic search, keep queries short and topical. If the source is lexical-heavy, include explicit aliases and abbreviations. After the bounded generic pass, apply org-specific expansions from user-provided context or connector-visible source truth using the rules in `company-context.md` only when those expansions are likely to change the recommended route.
 
 ## Source-Specific Notes
 
-- `internal_messaging`:
+- ~~Internal Messaging:
   - Search both channel names/descriptions and messages.
   - Default to public channels only; include private channels only on explicit user request.
   - Prefer server-side visibility filters when available; otherwise post-filter by channel visibility metadata.
@@ -54,16 +54,16 @@ If the source supports semantic search, keep queries short and topical. If the s
   - Inspect channel topics/purposes when channel search results are candidate ownership routes.
   - Prefer direct thread/message links as evidence for expert recommendations when available.
   - Follow connector-visible links from strong threads to docs, field guides, FAQs, or source-of-truth pages before ranking.
-  - Capture recurring handles as expert candidates only when their `internal_messaging` account is active (not deactivated).
+  - Capture recurring handles as expert candidates only when their ~~Internal Messaging account is active (not deactivated).
   - Require recent participation signals (default: within the last `90 days`) before elevating a person as an expert.
 
-- `document_store`:
+- ~~Knowledge & Files:
   - Prioritize title + heading matches, then body-only matches.
   - Prefer docs with clear owners and recent edits.
   - Search for central routing artifacts, including field guides, launch hubs, GTM pages, FAQs, playbooks, source-of-truth hubs, and support/escalation sections.
   - Fetch top candidate docs when snippets indicate they contain support channels, specialist routes, owner lists, customer-facing wording, or linked references.
 
-- `document_store` wiki/page sources:
+- ~~Knowledge & Files wiki/page sources:
   - Prefer pages linked from central hubs/wikis and pages with active updates.
   - Use parent/child relationships to find canonical pages, not one-off notes.
 

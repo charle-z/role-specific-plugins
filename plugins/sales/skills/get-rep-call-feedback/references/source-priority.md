@@ -2,7 +2,7 @@
 
 Prefer sources in this order:
 
-1. `meeting_notes`
+1. ~~Meeting Transcripts
 2. exported call summaries
 3. full transcripts
 4. structured call notes

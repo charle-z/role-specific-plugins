@@ -58,8 +58,13 @@ function tooltipEncoding(chart: ChartSpec, item: ChartTooltipPayloadItem): Chart
   return null;
 }
 
-function encodingValueFormat(encoding: ChartEncodingSpec): ValueFormat {
+function isPercentSymbolUnit(unit: string | undefined): boolean {
+  return unit?.trim() === "%";
+}
+
+function tooltipEncodingValueFormat(chart: ChartSpec, encoding: ChartEncodingSpec): ValueFormat {
   if (isValueFormat(encoding.format)) return encoding.format;
+  if (chart.valueFormat === "percent" && isPercentSymbolUnit(encoding.unit)) return "percent";
   return "number";
 }
 
@@ -95,7 +100,8 @@ function tooltipItemColor(chart: ChartSpec, item: ChartTooltipPayloadItem, itemI
 function tooltipItemValue(chart: ChartSpec, item: ChartTooltipPayloadItem, visibleTotal: number): string {
   const encoding = tooltipEncoding(chart, item);
   if (encoding) {
-    return formatValue(item.value, encodingValueFormat(encoding), encoding.unit);
+    const valueFormat = tooltipEncodingValueFormat(chart, encoding);
+    return formatValue(item.value, valueFormat, encoding.unit);
   }
   const numeric = asNumber(item.value);
   if (isNormalizedStackedChartType(chart.type, chart.settings?.groupMode) && numeric != null && visibleTotal > 0) {

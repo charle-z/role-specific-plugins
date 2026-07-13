@@ -29,7 +29,7 @@ properties:
     type: string
   mode:
     type: string
-    enum: [brief, objections, positioning, account_overlay]
+    enum: [brief, objections, positioning, account_overlay, chat_or_markdown_only]
   known_objections:
     type: array
     items:
@@ -38,5 +38,3 @@ properties:
     type: array
     items:
       type: string
-  business_context_path:
-    type: string

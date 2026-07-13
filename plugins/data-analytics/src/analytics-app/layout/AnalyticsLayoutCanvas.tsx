@@ -27,9 +27,15 @@ export type AnalyticsLayoutRenderActions = {
 
 export type AnalyticsLayoutBlock = {
   className?: string;
+  compactGroup?: string;
   defaultLayout?: AnalyticsLayoutWidth;
   id: string;
   render: (layout: AnalyticsLayoutWidth, actions: AnalyticsLayoutRenderActions) => ReactNode;
+};
+
+type AnalyticsLayoutDisplayRow = {
+  compactGroup: string | null;
+  items: AnalyticsLayoutItemState[];
 };
 
 type BlockRect = {
@@ -60,6 +66,8 @@ const AUTO_SCROLL_STEP_PX = 18;
 const REORDER_INSERT_BAND_RATIO = 0.3;
 const SPLIT_SIDE_ZONE_RATIO = 0.4;
 const SPLIT_INDICATOR_OUTSET_PX = 8;
+const COMPACT_ITEM_MIN_WIDTH_PX = 280;
+const COMPACT_ITEM_GAP_PX = 8;
 
 function parseStoredLayout(storageKey: string | null): unknown {
   if (!storageKey) return undefined;
@@ -77,6 +85,69 @@ function sameItems(first: AnalyticsLayoutItemState[], second: AnalyticsLayoutIte
     first.length === second.length
     && first.every((item, index) => item.id === second[index]?.id && item.layout === second[index]?.layout)
   );
+}
+
+function compactGroupForItem(
+  item: AnalyticsLayoutItemState,
+  blockById: Map<string, AnalyticsLayoutBlock>
+) {
+  return blockById.get(item.id)?.compactGroup ?? null;
+}
+
+function buildDisplayRows(
+  items: AnalyticsLayoutItemState[],
+  blockById: Map<string, AnalyticsLayoutBlock>
+): AnalyticsLayoutDisplayRow[] {
+  const displayRows: AnalyticsLayoutDisplayRow[] = [];
+  let index = 0;
+  while (index < items.length) {
+    const compactGroup = compactGroupForItem(items[index], blockById);
+    if (compactGroup) {
+      const compactItems: AnalyticsLayoutItemState[] = [];
+      while (
+        index < items.length
+        && compactGroupForItem(items[index], blockById) === compactGroup
+      ) {
+        compactItems.push(items[index]);
+        index += 1;
+      }
+      displayRows.push({ compactGroup, items: compactItems });
+      continue;
+    }
+
+    const standardItems: AnalyticsLayoutItemState[] = [];
+    while (index < items.length && !compactGroupForItem(items[index], blockById)) {
+      standardItems.push(items[index]);
+      index += 1;
+    }
+    for (const packedRow of packRows(standardItems)) {
+      displayRows.push({ compactGroup: null, items: [...packedRow] });
+    }
+  }
+  return displayRows;
+}
+
+function balancedCompactColumnCount(containerWidth: number, itemCount: number) {
+  if (itemCount <= 1 || containerWidth <= 0) return 1;
+  const fittingColumns = Math.max(
+    1,
+    Math.min(
+      itemCount,
+      Math.floor((containerWidth + COMPACT_ITEM_GAP_PX) / (COMPACT_ITEM_MIN_WIDTH_PX + COMPACT_ITEM_GAP_PX))
+    )
+  );
+  if (fittingColumns <= 1 || fittingColumns === itemCount) return fittingColumns;
+
+  let balancedColumns = fittingColumns;
+  let fewestEmptyCells = (fittingColumns - (itemCount % fittingColumns)) % fittingColumns;
+  for (let candidate = fittingColumns - 1; candidate >= 2; candidate -= 1) {
+    const emptyCells = (candidate - (itemCount % candidate)) % candidate;
+    if (emptyCells < fewestEmptyCells) {
+      balancedColumns = candidate;
+      fewestEmptyCells = emptyCells;
+    }
+  }
+  return balancedColumns;
 }
 
 function rectFromElement(element: HTMLElement): BlockRect {
@@ -147,6 +218,7 @@ export function AnalyticsLayoutCanvas({
 }) {
   const [items, setItems] = useState<AnalyticsLayoutItemState[]>(() => normalize(blocks));
   const [dragSession, setDragSession] = useState<DragSession | null>(null);
+  const [canvasWidth, setCanvasWidth] = useState(0);
   const blockById = useMemo(() => new Map(blocks.map((block) => [block.id, block])), [blocks]);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef(new Map<string, HTMLElement>());
@@ -159,6 +231,23 @@ export function AnalyticsLayoutCanvas({
   useEffect(() => {
     onLayoutChangeRef.current = onLayoutChange;
   }, [onLayoutChange]);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const updateWidth = () => {
+      const nextWidth = Math.floor(canvas.getBoundingClientRect().width);
+      setCanvasWidth((currentWidth) => currentWidth === nextWidth ? currentWidth : nextWidth);
+    };
+    updateWidth();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
 
   useLayoutEffect(() => {
     const previousLoad = layoutLoadRef.current;
@@ -209,7 +298,7 @@ export function AnalyticsLayoutCanvas({
     };
   }, []);
 
-  const rows = packRows(items);
+  const rows = buildDisplayRows(items, blockById);
 
   function measureBlockRects() {
     const rects = new Map<string, BlockRect>();
@@ -473,51 +562,62 @@ export function AnalyticsLayoutCanvas({
           style={dropIndicator.style}
         />
       ) : null}
-      {rows.map((row, rowIndex) => (
-        <div
-          className={`analytics-layout-row ${row.length === 2 ? "is-half-row" : "is-full-row"}`}
-          key={row.map((item) => item.id).join(":")}
-        >
-          {row.map((item) => {
-            const block = blockById.get(item.id);
-            if (!block) return null;
-            const isDragged = dragSession?.draggedId === item.id;
-            const isTarget = dragSession?.targetId === item.id;
-            const rendered = block.render(item.layout, {
-              setLayout: (nextLayout) => setBlockLayout(item.id, nextLayout)
-            });
-            return (
-              <div
-                className={`analytics-layout-item layout-${item.layout} ${block.className ?? ""} ${itemClassName?.(block, item.layout) ?? ""} ${isDragged ? "is-dragging" : ""} ${isTarget ? `is-drop-target intent-zone-${dragSession?.intent}` : ""}`.trim()}
-                data-analytics-layout-item
-                data-layout-block-id={item.id}
-                data-layout-row-index={rowIndex}
-                data-layout-width={item.layout}
-                key={item.id}
-                ref={(node) => {
-                  if (node) itemRefs.current.set(item.id, node);
-                  else itemRefs.current.delete(item.id);
-                }}
-              >
-                {isEditMode ? (
-                  <div
-                    aria-hidden="true"
-                    className="analytics-layout-grab-handle"
-                    data-image-export-exclude="true"
-                    onPointerDown={(event) => handlePointerDown(event, item.id)}
-                    title="Drag to reorder"
-                  >
-                    <DragHandleIcon />
+      {rows.map((row, rowIndex) => {
+        const compactColumns = row.compactGroup
+          ? balancedCompactColumnCount(canvasWidth, row.items.length)
+          : null;
+        const rowStyle = compactColumns
+          ? { "--analytics-compact-columns": compactColumns } as CSSProperties
+          : undefined;
+        return (
+          <div
+            className={`analytics-layout-row ${row.compactGroup ? "is-compact-row" : row.items.length === 2 ? "is-half-row" : "is-full-row"}`}
+            data-compact-columns={compactColumns ?? undefined}
+            data-compact-group={row.compactGroup ?? undefined}
+            key={row.items.map((item) => item.id).join(":")}
+            style={rowStyle}
+          >
+            {row.items.map((item) => {
+              const block = blockById.get(item.id);
+              if (!block) return null;
+              const isDragged = dragSession?.draggedId === item.id;
+              const isTarget = dragSession?.targetId === item.id;
+              const rendered = block.render(item.layout, {
+                setLayout: (nextLayout) => setBlockLayout(item.id, nextLayout)
+              });
+              return (
+                <div
+                  className={`analytics-layout-item layout-${item.layout} ${block.className ?? ""} ${itemClassName?.(block, item.layout) ?? ""} ${isDragged ? "is-dragging" : ""} ${isTarget ? `is-drop-target intent-zone-${dragSession?.intent}` : ""}`.trim()}
+                  data-analytics-layout-item
+                  data-layout-block-id={item.id}
+                  data-layout-row-index={rowIndex}
+                  data-layout-width={item.layout}
+                  key={item.id}
+                  ref={(node) => {
+                    if (node) itemRefs.current.set(item.id, node);
+                    else itemRefs.current.delete(item.id);
+                  }}
+                >
+                  {isEditMode ? (
+                    <div
+                      aria-hidden="true"
+                      className="analytics-layout-grab-handle"
+                      data-image-export-exclude="true"
+                      onPointerDown={(event) => handlePointerDown(event, item.id)}
+                      title="Drag to reorder"
+                    >
+                      <DragHandleIcon />
+                    </div>
+                  ) : null}
+                  <div className="analytics-layout-item-shell">
+                    {rendered}
                   </div>
-                ) : null}
-                <div className="analytics-layout-item-shell">
-                  {rendered}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
+              );
+            })}
+          </div>
+        );
+      })}
       {dragSession ? (
         <div
           aria-hidden="true"

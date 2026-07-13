@@ -67,6 +67,7 @@ function artifactPayload(surface = "dashboard") {
       {
         id: "revenue_card",
         dataset: "weekly_revenue",
+        sourceId: "weekly_revenue_sql",
         metrics: [{ label: "Revenue", field: "revenue_m", format: "currency" }],
       },
     ],
@@ -185,6 +186,40 @@ test("MCP widget resources serve bundled apps, not local development redirects",
   assert.match(artifactHtml, /Data Analytics Artifact App/);
 });
 
+test("artifact widget URI changes with the plugin version", () => {
+  assert.equal(
+    server.ARTIFACT_WIDGET_URI,
+    `ui://widget/datascience-artifact-${encodeURIComponent(server.SERVER_VERSION)}.html`,
+  );
+  assert.doesNotMatch(server.ARTIFACT_WIDGET_URI, /[?#]/);
+});
+
+test("artifact widget keeps the unversioned resource URI as a compatibility alias", async () => {
+  const legacyUri = "ui://widget/datascience-artifact.html";
+  const response = await server.handleRpc({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "resources/read",
+    params: { uri: legacyUri },
+  });
+
+  assert.equal(response.result.contents[0].uri, legacyUri);
+  assert.match(response.result.contents[0].text, /Data Analytics Artifact App/);
+});
+
+test("artifact widget keeps query-versioned resource URIs as compatibility aliases", async () => {
+  const legacyUri = `ui://widget/datascience-artifact.html?v=${encodeURIComponent(server.SERVER_VERSION)}`;
+  const response = await server.handleRpc({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "resources/read",
+    params: { uri: legacyUri },
+  });
+
+  assert.equal(response.result.contents[0].uri, legacyUri);
+  assert.match(response.result.contents[0].text, /Data Analytics Artifact App/);
+});
+
 test("JavaScript MCP server renders hosted artifact payloads", () => {
   const payload = server.callTool("render_artifact", artifactPayload("report"));
 
@@ -210,6 +245,41 @@ test("JavaScript MCP server exposes only canonical tool names", () => {
   );
 });
 
+test("JavaScript MCP UI tool instructions guard web Work Mode delivery", () => {
+  const tools = Object.fromEntries(server.toolDefinitions().map((tool) => [tool.name, tool]));
+
+  assert.match(server.SERVER_INSTRUCTIONS, /do not call render_artifact, render_chart, or render_table/);
+  assert.match(server.SERVER_INSTRUCTIONS, /mode = work_mode is positive and surface is unknown/);
+  assert.match(server.SERVER_INSTRUCTIONS, /lack appContext/);
+  assert.match(server.SERVER_INSTRUCTIONS, /Preserve the delivery mode already selected/);
+  assert.match(server.SERVER_INSTRUCTIONS, /treat charts_widget_v2 as directly surfaced/);
+  assert.match(server.SERVER_INSTRUCTIONS, /emit its live genui content reference before fallback/);
+  assert.match(server.SERVER_INSTRUCTIONS, /do not self-declare it unavailable, search for it, or print its payload as bare JSON/);
+  assert.match(server.SERVER_INSTRUCTIONS, /Keep app_block conditional on/);
+  assert.ok(server.SERVER_INSTRUCTIONS.includes('genui{"charts_widget_v2":{"content":{...}}}'));
+  assert.match(server.SERVER_INSTRUCTIONS, /not standalone assistant text/);
+  assert.match(server.SERVER_INSTRUCTIONS, /Use image-based\/static charting only after an emitted native reference is rejected or fails to render/);
+  assert.match(server.SERVER_INSTRUCTIONS, /Use image-based\/static charting for that native-render failure fallback/);
+  assert.match(server.SERVER_INSTRUCTIONS, /Do not say a visual rendered above/);
+  assert.match(tools.render_artifact.description, /positively identified ChatGPT web Work Mode/);
+  assert.match(tools.render_artifact.description, /mode = work_mode is positive and surface is/);
+  assert.match(tools.render_artifact.description, /not delivery confirmation/);
+  assert.match(tools.render_chart.description, /Do not call this tool for inline visual delivery/);
+  assert.match(tools.render_chart.description, /otherwise not positively codex_desktop/);
+  assert.match(tools.render_chart.description, /treat charts_widget_v2 as directly surfaced/);
+  assert.match(tools.render_chart.description, /emit its live genui content reference before fallback/);
+  assert.match(tools.render_chart.description, /do not self-declare it unavailable, search for it, or print its payload as bare JSON/);
+  assert.match(tools.render_chart.description, /Keep app_block conditional on/);
+  assert.ok(tools.render_chart.description.includes('genui{"charts_widget_v2":{"content":{...}}}'));
+  assert.match(tools.render_chart.description, /not standalone assistant text/);
+  assert.match(tools.render_chart.description, /Use image-based\/static charting only after an emitted native reference is rejected or fails to render/);
+  assert.match(tools.render_chart.description, /Use image-based\/static charting for that native-render failure fallback/);
+  assert.match(tools.render_chart.description, /not delivery confirmation/);
+  assert.match(tools.render_table.description, /Do not call this tool for inline table delivery/);
+  assert.match(tools.render_table.description, /otherwise not positively codex_desktop/);
+  assert.match(tools.render_table.description, /not delivery confirmation/);
+});
+
 test("JavaScript MCP server advertises Data Analytics icons on server info", async () => {
   assert.equal(server.DATA_ANALYTICS_ICONS[0].mimeType, "image/svg+xml");
   assert.deepEqual(server.DATA_ANALYTICS_ICONS[0].sizes, ["24x24"]);
@@ -228,7 +298,7 @@ test("JavaScript MCP server advertises Data Analytics icons on server info", asy
     method: "initialize",
     params: {},
   });
-  assert.equal(response.result.serverInfo.title, "Data Analytics Widgets");
+  assert.equal(response.result.serverInfo.title, "Data Analytics");
   assert.equal(
     response.result.serverInfo.description,
     "Render Data Analytics charts, tables, dashboards, and report artifacts.",
@@ -320,6 +390,40 @@ test("JavaScript MCP server rejects key aliases for report table columns", () =>
   assert.throws(
     () => server.callTool("render_artifact", args),
     /manifest\.tables\["revenue_table"\]\.columns\[0\]\.field/,
+  );
+});
+
+test("JavaScript MCP server accepts and validates artifact table default sorts", () => {
+  const args = artifactPayload("report");
+  args.manifest.tables[0].defaultSort = {
+    field: "revenue_m",
+    direction: "desc",
+  };
+
+  const payload = server.callTool("render_artifact", args);
+  assert.deepEqual(payload.manifest.tables[0].defaultSort, {
+    field: "revenue_m",
+    direction: "desc",
+  });
+
+  const unknownField = artifactPayload("report");
+  unknownField.manifest.tables[0].defaultSort = {
+    field: "missing_metric",
+    direction: "desc",
+  };
+  assert.throws(
+    () => server.callTool("validate_artifact", unknownField),
+    /defaultSort\.field must reference a declared table column/,
+  );
+
+  const invalidDirection = artifactPayload("report");
+  invalidDirection.manifest.tables[0].defaultSort = {
+    field: "revenue_m",
+    direction: "descending",
+  };
+  assert.throws(
+    () => server.callTool("validate_artifact", invalidDirection),
+    /defaultSort\.direction must be asc or desc/,
   );
 });
 
@@ -417,6 +521,56 @@ test("JavaScript MCP server leaves percent chart scale to the manifest data cont
   assert.equal(server.callTool("validate_artifact", args).ok, true);
 });
 
+test("JavaScript MCP server preserves percent format and percent unit for rate chart tooltips", () => {
+  const payload = server.callTool("render_chart", {
+    title: "Daily no-deployment rate",
+    source: sourceQueryForTest(),
+    table: {
+      columns: [
+        { key: "ds", label: "Date", type: "date" },
+        { key: "segment", label: "Segment", type: "text" },
+        { key: "no_deployment_rate", label: "No-deployment rate", type: "number", format: "percent", unit: "%" },
+      ],
+      rows: [
+        { ds: "2026-05-25", segment: "Broad", no_deployment_rate: 0.98 },
+        { ds: "2026-05-25", segment: "Narrow", no_deployment_rate: 0.97 },
+        { ds: "2026-05-26", segment: "Broad", no_deployment_rate: 0.965 },
+        { ds: "2026-05-26", segment: "Narrow", no_deployment_rate: 0.955 },
+      ],
+      row_count: 4,
+      truncated: false,
+    },
+    chart: {
+      type: "line",
+      fields: {
+        x: { field: "ds", type: "temporal" },
+        y: { field: "no_deployment_rate", type: "quantitative", unit: "%" },
+        color: { field: "segment", type: "nominal" },
+      },
+      options: { points: "always" },
+    },
+    display: {
+      unit: "%",
+      y_axis_title: "no_deployment_rate (%)",
+    },
+  });
+
+  assert.equal(payload.chart_spec.valueFormat, "percent");
+  assert.equal(payload.chart_spec.unit, "%");
+  assert.equal(payload.chart_spec.encodings.y.format, "percent");
+  assert.equal(payload.chart_spec.encodings.y.unit, "%");
+  assert.deepEqual(payload.data.map((row) => row.y), [0.98, 0.97, 0.965, 0.955]);
+});
+
+test("artifact chart widget bridge preserves y value formats for synthetic value fields", () => {
+  const app = readFileSync(new URL("../src/analytics-app/App.tsx", import.meta.url), "utf8");
+
+  assert.match(app, /const yFormat = yEncoding\.format \?\? chart\.valueFormat;/);
+  assert.match(app, /\.\.\.\(format \? \{ format \} : \{\}\),/);
+  assert.match(app, /\{ key: "value", label: chartEncodingLabel\(chart, "y", "Value"\), type: "number", \.\.\.yFormatSpec, unit \}/);
+  assert.match(app, /y: \{ aggregate: "sum", field: "value", type: "quantitative", \.\.\.yFormatSpec, unit \}/);
+});
+
 test("JavaScript MCP server requires explicit artifact chart source links", () => {
   const args = artifactPayload("report");
   delete args.manifest.charts[0].sourceId;
@@ -509,6 +663,48 @@ test("JavaScript MCP server validates metric-strip blocks", () => {
     () => server.callTool("validate_artifact", missingCard),
     /cardIds\[0\] does not match a manifest card/,
   );
+
+  const missingSource = artifactPayload("report");
+  missingSource.manifest.blocks.unshift({
+    id: "headline_metrics",
+    type: "metric-strip",
+    cardIds: ["revenue_card"],
+  });
+  delete missingSource.manifest.cards[0].sourceId;
+  assert.throws(
+    () => server.callTool("validate_artifact", missingSource),
+    /manifest\.cards\[0\]\.source must include the actual SQL query text/,
+  );
+
+  const missingDashboardSource = artifactPayload("dashboard");
+  delete missingDashboardSource.manifest.cards[0].sourceId;
+  assert.throws(
+    () => server.callTool("validate_artifact", missingDashboardSource),
+    /manifest\.cards\[0\]\.source must include the actual SQL query text/,
+  );
+
+  const inlineSource = artifactPayload("report");
+  inlineSource.manifest.blocks.unshift({
+    id: "headline_metrics",
+    type: "metric-strip",
+    cardIds: ["revenue_card"],
+  });
+  delete inlineSource.manifest.cards[0].sourceId;
+  inlineSource.manifest.cards[0].source = sourceQueryForTest();
+  assert.equal(server.callTool("validate_artifact", inlineSource).ok, true);
+
+  for (const cardCount of [5, 7]) {
+    const manyCards = artifactPayload("dashboard");
+    manyCards.manifest.cards = Array.from({ length: cardCount }, (_, index) => ({
+      ...manyCards.manifest.cards[0],
+      id: `revenue_card_${index + 1}`,
+      metrics: [{ label: `Revenue ${index + 1}`, field: "revenue_m", format: "currency" }],
+    }));
+    manyCards.manifest.blocks[0].cardIds = manyCards.manifest.cards.map((card) => card.id);
+    const rendered = server.callTool("render_artifact", manyCards);
+    assert.deepEqual(rendered.manifest.blocks[0].cardIds, manyCards.manifest.blocks[0].cardIds);
+    assert.equal(rendered.manifest.cards.length, cardCount);
+  }
 });
 
 test("funnel labels use an explicit high-contrast fill", () => {
@@ -567,6 +763,25 @@ test("signed vertical bar labels reserve compact axis clearance", () => {
     "utf8",
   );
   assert.match(labelRenderer, /const BAR_NEGATIVE_VALUE_LABEL_AXIS_GUTTER = 40;/);
+});
+
+test("signed horizontal bar labels stay out of the category-label lane", () => {
+  const renderer = readFileSync(
+    new URL("../src/analytics-app/charting/ChartRenderer.tsx", import.meta.url),
+    "utf8",
+  );
+  const labelRenderer = renderer
+    .split("function renderBarValueLabel", 2)[1]
+    .split("function categoryBarTooltipColor", 1)[0];
+
+  assert.match(labelRenderer, /const zeroSideNegativeLabel = isNegative && placeNegativeHorizontalLabelsAtZeroSide;/);
+  assert.match(labelRenderer, /zeroSideNegativeLabel \? "start" : isNegative \? "end" : "start"/);
+  assert.match(labelRenderer, /zeroSideNegativeLabel \? right \+ BAR_VALUE_LABEL_OFFSET : isNegative \? left - BAR_VALUE_LABEL_OFFSET : right \+ BAR_VALUE_LABEL_OFFSET/);
+  assert.match(renderer, /placeNegativeHorizontalLabelsAtZeroSide: htmlReport/);
+  assert.match(
+    renderer,
+    /horizontal && \(barValueLabelSides\.hasNonNegative \|\| \(htmlReport && barValueLabelSides\.hasNegative\)\)/,
+  );
 });
 
 test("encoded funnel charts keep a single series even when color is present", () => {
@@ -667,6 +882,35 @@ test("category x-axis labels wrap when crowded and rotate only when requested", 
   assert.match(wrappingHeuristic, /longestLabelWidth <= labelSlotWidth\) return false/);
   assert.match(wrappingHeuristic, /if \(maxLength >= CATEGORY_X_AXIS_LONG_LABEL_LENGTH\) return true/);
   assert.match(renderer, /function WrappedCategoryXAxisTick/);
+  assert.match(renderer, /function sparseCategoryXAxisTicks/);
+  assert.match(renderer, /CATEGORY_X_AXIS_MIN_VISIBLE_TICK_SPACING/);
+  assert.match(renderer, /if \(ticks\[ticks\.length - 1\] !== last\) ticks\.push\(last\)/);
+  assert.match(renderer, /ticks: categoryXAxisTicks/);
+});
+
+test("category x-axis wrapping respects narrow slots and balances long labels", () => {
+  const renderer = readFileSync(
+    new URL("../src/analytics-app/charting/ChartRenderer.tsx", import.meta.url),
+    "utf8",
+  );
+  const lineLengthBudget = renderer
+    .split("function categoryXAxisWrappedLineLength", 2)[1]
+    .split("function sparseCategoryXAxisTicks", 1)[0];
+  const balancedSplit = renderer
+    .split("function balancedCategoryAxisLabelSplit", 2)[1]
+    .split("function wrapCategoryAxisLabel", 1)[0];
+  const wrappedTick = renderer
+    .split("function WrappedCategoryXAxisTick", 2)[1]
+    .split("function categoryXAxisLabels", 1)[0];
+
+  assert.doesNotMatch(renderer, /CATEGORY_X_AXIS_MIN_LINE_CHARACTERS/);
+  assert.match(lineLengthBudget, /Math\.max\(1, Math\.floor\(slotWidth \/ CATEGORY_X_AXIS_ESTIMATED_CHAR_WIDTH\)\)/);
+  assert.match(balancedSplit, /const midpoint = value\.length \/ 2/);
+  assert.match(balancedSplit, /value\.matchAll\(\/\\s\+\/g\)/);
+  assert.match(balancedSplit, /Math\.abs\(index - midpoint\) < Math\.abs\(best - midpoint\)/);
+  assert.match(balancedSplit, /Math\.ceil\(midpoint\)/);
+  assert.match(renderer, /if \(safeMaxLength === 1\) return "…"/);
+  assert.match(wrappedTick, /<title>\{value\}<\/title>/);
 });
 
 test("numeric axis ticks omit repeated units while axis titles carry unit context", () => {
@@ -694,7 +938,10 @@ test("numeric axis ticks omit repeated units while axis titles carry unit contex
   assert.doesNotMatch(renderer, /tickFormatter=\{\(value\) => formatValue\(value, [^}\n]*chart\.unit/);
   assert.match(transforms, /labels: ticks\.map\(\(value\) => formatValue\(value, chart\.valueFormat\)\)/);
   assert.match(helpers, /function chartEncodingAxisTitle/);
+  assert.match(helpers, /function axisTitlesForEncodedChart/);
+  assert.match(helpers, /horizontal \? encodedYAxisTitle : encodedXAxisTitle/);
   assert.match(helpers, /return `\$\{label\} \(\$\{unit\}\)`/);
+  assert.match(renderer, /const horizontalValueAxisLabel = chart\.xAxisTitle \? bottomAxisLabel\(chart\.xAxisTitle\) : undefined;/);
   assert.match(horizontalBar, /<XAxis[^>]*label=\{horizontalValueAxisLabel\}/);
   assert.match(horizontalBar, /<YAxis[^>]*label=\{horizontalCategoryAxisLabel\}/);
   assert.doesNotMatch(horizontalBar, /label=\{yAxisLabel\}/);
@@ -723,6 +970,20 @@ test("artifact table movement cells render explicit positive and negative signs"
   assert.match(app, /tableCellMovementClass\(column, value\)/);
 });
 
+test("artifact tables initialize interactive sorting from the manifest default", () => {
+  const app = readFileSync(new URL("../src/analytics-app/App.tsx", import.meta.url), "utf8");
+  const artifactWidget = readFileSync(
+    new URL("../src/datascience-artifact-widget.jsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(app, /function tableDefaultSort\(table\)/);
+  assert.match(app, /useState\(\(\) => tableDefaultSort\(table\)\)/);
+  assert.match(app, /setSortState\(tableDefaultSort\(table\)\)/);
+  assert.match(artifactWidget, /defaultSort\.field must reference a declared table column/);
+  assert.match(artifactWidget, /defaultSort\.direction must be asc or desc/);
+});
+
 test("artifact card chart type menu is limited by data shape", () => {
   const compatibility = readFileSync(
     new URL("../src/analytics-app/charting/chart-compatibility.ts", import.meta.url),
@@ -740,26 +1001,105 @@ test("artifact card chart type menu is limited by data shape", () => {
   assert.match(compatibility, /const HIDDEN_BAR_VARIANT_TYPE_LIST: ChartType\[\] = \[/);
   assert.match(compatibility, /if \(chart\.type === "funnel" \|\| chart\.intent === "funnel"\) return FUNNEL_SHAPE_TYPES;/);
   assert.match(helpers, /export function compatibleChartTypesForArtifactCard/);
-  assert.equal((app.match(/compatibleChartTypesForArtifactCard\(overriddenChart, chartRows\)/g) || []).length, 2);
-  assert.match(app, /applyChartSpecOverride\(chart, chartSpecOverrides\[chart\.id\]\)/);
+  assert.equal((app.match(/compatibleChartTypesForArtifactCard\(overriddenChart, chartRows\)/g) || []).length, 1);
+  assert.match(app, /const dashboardContentBlocks = useMemo\([\s\S]*<ReportBlockCard/);
+  assert.match(app, /applyChartSpecOverride\(chart, chartSpecOverride\)/);
+  assert.match(app, /chartSpecOverride=\{chart \? chartSpecOverrides\[chart\.id\] : undefined\}/);
   assert.match(app, /const chartModalTypeOptions = chartModalBaseChart\s+\?\s+compatibleChartTypesFor\(chartModalBaseChart, chartModalRows\)/);
 });
 
-test("artifact data source dialogs use sectioned shared table content", () => {
+test("artifact data source dialogs use three accessible tabs with one scroll body", () => {
   const app = readFileSync(new URL("../src/analytics-app/App.tsx", import.meta.url), "utf8");
+  const tableSizing = readFileSync(new URL("../src/analytics-app/tables/tableSizing.ts", import.meta.url), "utf8");
   const styles = readFileSync(new URL("../src/analytics-app/styles.css", import.meta.url), "utf8");
 
-  assert.match(app, /<h3>Details<\/h3>/);
-  assert.match(app, /<h3>Source query<\/h3>/);
-  assert.match(app, /<h3>Data table<\/h3>/);
+  assert.match(app, /function Tabs\(\{ ariaLabel, onSelect, selectedKey, tabs \}\)/);
+  assert.match(app, /role="tablist"/);
+  assert.match(app, /\{ id: "overview", label: "Overview", panelId:/);
+  assert.match(app, /\{ id: "data", label: "Data preview", panelId:/);
+  assert.match(app, /\{ id: "sql", label: "SQL query", panelId:/);
+  assert.match(app, /className="source-modal-tab-indicator"/);
+  assert.equal((app.match(/className="source-modal-tab-indicator"/g) || []).length, 1);
+  assert.match(app, /const updateIndicator = useCallback/);
+  assert.match(app, /indicator\.style\.transform = `translate3d/);
+  assert.match(app, /new ResizeObserver\(updateIndicator\)/);
+  assert.match(app, /event\.key === "ArrowRight"/);
+  assert.match(app, /event\.key === "Home"/);
+  assert.match(app, /activeTab === "data"/);
+  assert.match(app, /id=\{`\$\{tabId\}-data-panel`\}/);
+  assert.doesNotMatch(app, /<h3>Data preview<\/h3>/);
+  assert.match(app, /function Badge\(\{ children, className = "" \}\)/);
+  assert.match(app, /function sourceMetadataValue/);
+  assert.match(app, /function sourceMetadataChips/);
+  assert.match(app, /<Badge className="source-metadata-chip"/);
+  assert.doesNotMatch(app, /function sourceMetadataBadge/);
+  assert.doesNotMatch(app, /className="source-metadata-code"/);
+  assert.match(app, /<dd>\{sourceMetadataValue\(details\.dataset\)\}<\/dd>/);
+  assert.match(app, /sourceMetadataChips\(details\.tables\)/);
+  assert.match(app, /sourceMetadataChips\(details\.filters\)/);
+  assert.match(app, /function metricDefinitionRows/);
+  assert.match(app, /const SOURCE_METRIC_DEFINITION_COLUMNS = \[/);
+  assert.match(app, /dataset="__source_metric_definitions" density="spacious" fillAvailableWidth rows=\{metricDefinitionRows/);
+  assert.doesNotMatch(app, /<dt>Metric definitions<\/dt>/);
+  assert.doesNotMatch(app, /className="source-metric-definition-table"/);
+  assert.match(app, /are\|is\|equals\|uses\?\|means\|measures/);
+  assert.match(app, /itemLabel=\{chart\.title\} itemType="Chart"/);
+  assert.match(app, /itemLabel=\{label\} itemType="Metric"/);
+  assert.match(app, /itemLabel=\{table\.title\} itemType="Table"/);
+  assert.match(app, /function sourceSnapshotDate/);
+  assert.match(app, /<dt>Data snapshot<\/dt>/);
+  assert.match(app, /sourceSnapshotDate\(details\.snapshot\)/);
+  assert.doesNotMatch(app, /sourceSnapshotSubtitle/);
+  assert.doesNotMatch(app, /source-overview-summary/);
+  assert.doesNotMatch(app, /const summary =/);
+  assert.match(app, /className="source-modal-body"/);
   assert.match(app, /function SourceDataTable/);
+  assert.match(app, /function CardSourceModalDialog/);
+  assert.match(app, /function sourceForCard/);
+  assert.doesNotMatch(app, /kpi-source-button|kpi-source-icon|FileSearch2/);
+  assert.match(app, /<CardSourceModalDialog activeFilters=/);
   assert.match(app, /className="source-data-table"/);
   assert.match(app, /<TableContent allowColumnResize=\{false\} columnWidths=/);
+  assert.match(app, /const SOURCE_DATA_PREVIEW_PAGE_SIZE = 10;/);
+  assert.match(app, /pageSize: requestedPageSize = TABLE_CARD_PAGE_SIZE/);
+  assert.match(app, /pageSize=\{SOURCE_DATA_PREVIEW_PAGE_SIZE\}/);
+  assert.equal((app.match(/pageSize=\{SOURCE_DATA_PREVIEW_PAGE_SIZE\}/g) || []).length, 3);
   assert.doesNotMatch(app, /function SourcePreviewRows/);
   assert.match(app, /className="modal-close-button"/);
   assert.match(app, /useModalScrollLock\(true\)/);
   assert.match(styles, /\.native-modal\.source-modal/);
-  assert.match(styles, /\.source-query \{[\s\S]*?overflow-x: hidden;[\s\S]*?white-space: pre-wrap;/);
+  assert.doesNotMatch(styles, /\.kpi-source-button|\.kpi-source-icon/);
+  assert.match(styles, /\.source-query \{[\s\S]*?max-height: none;[\s\S]*?overflow: visible;/);
+  assert.match(styles, /\.source-query \{[\s\S]*?white-space: pre-wrap;/);
+  assert.match(styles, /\.source-modal-body \{[\s\S]*?overflow-y: auto;/);
+  assert.match(styles, /\.source-details-summary \{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
+  assert.match(styles, /\.source-details-stack \{[\s\S]*?display: grid;[\s\S]*?gap: 16px;/);
+  assert.match(styles, /\.chip \{[\s\S]*?border-radius: var\(--ds-radius-pill\);/);
+  assert.match(styles, /\.source-metadata-chip \{[\s\S]*?background: transparent;[\s\S]*?color: var\(--ds-text-primary\);[\s\S]*?font-family: var\(--ds-font\);[\s\S]*?font-size: var\(--codex-font-size-base\);[\s\S]*?font-weight: 400;[\s\S]*?padding-block: 4px;/);
+  assert.doesNotMatch(styles, /\.source-metadata-code \{/);
+  assert.doesNotMatch(styles, /\.source-metric-definitions > dt \{/);
+  assert.match(styles, /\.source-metric-definitions \{[\s\S]*?min-width: 0;/);
+  assert.match(styles, /\.source-metric-definitions tbody \.table-column-content-fit \{[\s\S]*?font-weight: 500;/);
+  assert.doesNotMatch(styles, /\.source-metric-definition-table \{/);
+  assert.match(styles, /\.source-modal-tab \{[\s\S]*?padding: 0 0 13px;/);
+  assert.match(styles, /\.source-modal-panel > \.modal-header \{[\s\S]*?padding: 20px 24px 4px;/);
+  assert.match(styles, /\.native-modal\.source-modal \{[\s\S]*?height: fit-content;[\s\S]*?max-height: min\(760px, calc\(100dvh - 48px\)\);/);
+  assert.match(styles, /\.source-modal-panel \{[\s\S]*?height: auto;[\s\S]*?max-height: min\(760px, calc\(100dvh - 48px\)\);/);
+  assert.match(styles, /\.source-modal-tabs \{[\s\S]*?border-bottom: 1px solid var\(--ds-border-subtle\);/);
+  assert.match(styles, /\.source-modal-tab-indicator \{[\s\S]*?height: 2px;[\s\S]*?transform 180ms/);
+  assert.match(styles, /\.source-modal-tab-indicator\[data-ready="true"\] \{[\s\S]*?opacity: 1;/);
+  assert.doesNotMatch(styles, /\.source-modal-panel > \.modal-header \{[^}]*border(?:-bottom)?:/);
+  assert.doesNotMatch(styles, /\.source-filter-chip \{/);
+  assert.match(app, /\{ field: "metric", label: "Metric", sizing: "content", type: "text" \}/);
+  assert.match(app, /column\.sizing === "content"/);
+  assert.match(app, /calculateTableSizing\(table\.columns, activeColumnWidths, tableViewportWidth, shouldFillAvailableWidth\)/);
+  assert.match(tableSizing, /column\.sizing !== "content"/);
+  assert.match(tableSizing, /normalizedViewportWidth - baseTableWidth/);
+  assert.match(tableSizing, /extraWidthPerFlexibleColumn/);
+  assert.match(app, /new ResizeObserver\(updateViewportWidth\)/);
+  assert.match(styles, /\.data-table-smart-layout \.table-column-content-fit/);
+  assert.match(styles, /\.source-query \{[\s\S]*?max-height: none;[\s\S]*?overflow: visible;/);
+  assert.match(styles, /\.source-query \{[\s\S]*?white-space: pre-wrap;/);
 });
 
 test("JavaScript MCP server rejects ready artifacts with access issues", () => {
@@ -880,6 +1220,10 @@ test("JavaScript MCP server advertises artifact handoff before fallback widgets"
   assert.match(server.SERVER_INSTRUCTIONS, /^Before rendering a report or dashboard artifact/);
   assert.match(server.SERVER_INSTRUCTIONS, /manifest\.blocks/);
   assert.match(server.SERVER_INSTRUCTIONS, /first markdown block whose body is a # heading matching manifest\.title/);
+  assert.match(server.SERVER_INSTRUCTIONS, /independently editable major report section/);
+  assert.match(server.SERVER_INSTRUCTIONS, /multiple peer ## headings/);
+  assert.match(server.SERVER_INSTRUCTIONS, /One headline metric does not mean one metrics\[\] entry/);
+  assert.match(server.SERVER_INSTRUCTIONS, /defaultSort/);
   assert.match(validateTool.description, /without rendering a hosted widget/);
   assert.equal(validateTool._meta, undefined);
   assert.match(artifactTool.description, /dashboard or report artifact/);
@@ -887,20 +1231,37 @@ test("JavaScript MCP server advertises artifact handoff before fallback widgets"
   assert.match(artifactTool.inputSchema.properties.manifest.description, /top-level manifest\.blocks/);
   assert.match(artifactTool.inputSchema.properties.manifest.description, /first content heading/);
   assert.match(artifactTool.inputSchema.properties.manifest.properties.blocks.description, /type "html"/);
+  assert.match(artifactTool.inputSchema.properties.manifest.properties.blocks.description, /independently editable major report section/);
   assert.match(artifactTool.inputSchema.properties.manifest.properties.title.description, /first content heading/);
   const manifestSchema = artifactTool.inputSchema.properties.manifest;
   const cardSchema = manifestSchema.properties.cards.items;
   assert.ok(cardSchema.required.includes("metrics"));
   assert.equal(cardSchema.properties.valueField, undefined);
+  assert.equal(cardSchema.properties.sourceId.type[0], "string");
+  assert.ok(cardSchema.properties.source);
+  assert.match(cardSchema.properties.sourceId.description, /data-source modal/);
+  assert.match(cardSchema.properties.metrics.description, /One headline metric/);
+  assert.match(cardSchema.properties.metrics.description, /One headline does not mean one metrics\[\] entry/);
+  assert.match(cardSchema.properties.metrics.description, /executive summary or findings/);
+  assert.match(cardSchema.properties.metrics.description, /independent secondary metrics/);
   assert.equal(cardSchema.properties.metrics.items.properties.field.type, "string");
+  assert.match(cardSchema.properties.metrics.items.properties.format.description, /Use "percent" only for fractional-rate values/);
 
-  const tableColumnSchema = manifestSchema.properties.tables.items.properties.columns.items;
+  const tableSchema = manifestSchema.properties.tables.items;
+  const tableColumnSchema = tableSchema.properties.columns.items;
   assert.ok(tableColumnSchema.required.includes("field"));
   assert.equal(tableColumnSchema.properties.key, undefined);
+  assert.deepEqual(tableSchema.properties.defaultSort.required, ["field", "direction"]);
+  assert.deepEqual(tableSchema.properties.defaultSort.properties.direction.enum, ["asc", "desc"]);
+  assert.match(tableColumnSchema.properties.format.description, /98.*use "number" with unit "%"/);
+
+  const chartSchema = manifestSchema.properties.charts.items;
+  assert.match(chartSchema.properties.valueFormat.description, /0\.98 for 98%/);
 
   const blockSchema = manifestSchema.properties.blocks.items;
   assert.ok(blockSchema.required.includes("id"));
   assert.equal(blockSchema.properties.markdown, undefined);
+  assert.match(blockSchema.properties.body.description, /one peer ## heading/);
   assert.deepEqual(artifactTool._meta.ui, {
     resourceUri: server.ARTIFACT_WIDGET_URI,
     visibility: ["model"],
@@ -1002,6 +1363,41 @@ test("JavaScript MCP server accepts custom chart axis titles", () => {
   assert.equal(payload.chart_spec.yAxisTitle, "ARR, billions");
   assert.equal("x_label" in payload, false);
   assert.equal("y_label" in payload, false);
+});
+
+test("JavaScript MCP server preserves physical axis titles for horizontal bars", () => {
+  const payload = server.callTool("render_chart", {
+    title: "Horizontal activation milestones",
+    source: sourceQueryForTest(),
+    table: {
+      columns: [
+        { key: "milestone", label: "Activation milestone", type: "text" },
+        { key: "workspaces", label: "Activated workspaces", type: "number", format: "number" },
+      ],
+      rows: [
+        { milestone: "Admin invited teammates", workspaces: 1820 },
+        { milestone: "Slack integration connected", workspaces: 1428 },
+      ],
+      row_count: 2,
+      truncated: false,
+    },
+    chart: {
+      type: "bar",
+      fields: {
+        x: { field: "milestone", type: "nominal" },
+        y: { field: "workspaces", type: "quantitative" },
+      },
+      options: { orientation: "horizontal" },
+    },
+    display: {
+      x_axis_title: "Activated workspaces",
+      y_axis_title: "Activation milestone",
+    },
+  });
+
+  assert.equal(payload.chart_spec.settings.orientation, "horizontal");
+  assert.equal(payload.chart_spec.xAxisTitle, "Activated workspaces");
+  assert.equal(payload.chart_spec.yAxisTitle, "Activation milestone");
 });
 
 test("JavaScript MCP server normalizes heatmap encodings to widget field roles", () => {
@@ -1174,6 +1570,8 @@ test("JavaScript MCP server exposes chart v1 settings in the chart schema", () =
   assert.equal("labels" in display, false);
   assert.equal("number_format" in display, false);
   assert.deepEqual(tableColumn.format.enum, ["compact", "number", "percent", "currency", null]);
+  assert.match(tableColumn.format.description, /Use "percent" only for fractional-rate values/);
+  assert.match(tableColumn.format.description, /98.*use "number" with unit "%"/);
   assert.equal("version" in chart, false);
   assert.equal("comparisonContext" in chart, false);
   assert.equal("notes" in properties, false);

@@ -88,6 +88,8 @@ export type CardSpec = {
   id: string;
   description?: string;
   dataset: string;
+  sourceId?: string;
+  source?: SourceSpec;
   filter?: Record<string, string | number | boolean | null>;
   metrics: CardMetricSpec[];
 };
@@ -170,6 +172,10 @@ export type TableSpec = {
   showDescription?: boolean;
   headerMarkdown?: string;
   dataset: string;
+  defaultSort?: {
+    field: string;
+    direction: "asc" | "desc";
+  };
   density?: TableDensity;
   sourceId?: string;
   source?: SourceSpec;

@@ -6,8 +6,10 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 
 const input = process.env.INPUT ?? "datascience-chart-widget.html";
 const isArtifactWidget = input.includes("datascience-artifact-widget");
+const isHtmlReportRuntime = input.includes("html-report-runtime");
+const usesReactApp = isArtifactWidget || isHtmlReportRuntime;
 const pluginRoot = fileURLToPath(new URL(".", import.meta.url));
-const reactAliases = isArtifactWidget
+const reactAliases = usesReactApp
   ? [
       { find: /^react$/, replacement: path.join(pluginRoot, "node_modules/react/index.js") },
       {
@@ -37,7 +39,7 @@ export default defineConfig({
   build: {
     outDir: "../assets",
     emptyOutDir: false,
-    minify: isArtifactWidget ? "oxc" : false,
+    minify: usesReactApp ? "oxc" : false,
     cssMinify: false,
     rollupOptions: {
       input

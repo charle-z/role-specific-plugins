@@ -1,7 +1,15 @@
 ---
 name: metric-diagnostics
-description: "Diagnose why a metric changed or differs from expectation by reproducing the metric, choosing the right comparison, validating likely drivers, and producing a calibrated explanation. Use when the user needs to understand what drove a metric movement, anomaly, gap, or discrepancy."
+description: "Diagnose why a metric changed or differs from expectation. Use when the task is to identify likely drivers of a metric movement, anomaly, gap, or discrepancy."
 ---
+
+## Related Skills
+
+Use $gather-business-context when business context is needed to understand the metric, analysis period, ownership, or plausible explanations.
+
+Use $product-business-analysis when the task asks for a recommendation or tradeoff decision after diagnosing the movement.
+
+Use $analyze-data-quality when dashboard trust, grain, freshness, or source disagreement could affect the metric.
 
 # Metric Diagnostics
 
@@ -11,19 +19,12 @@ Clarify with the user when a missing input would materially change the analytica
 
 ## Skill Configuration
 
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
-
 ### Source Discovery And Verification
 
-Use the relevant semantic layer first when one exists. Treat it as the starting map for candidate metrics, tables, joins, filters, caveats, source precedence, and known conflicts.
+Use the relevant semantic layer as a starting map, not a boundary.
 
-Do not stop at the semantic layer or the first plausible source. Search across the relevant available company source lanes, including structured data or data warehouses, dashboards, company docs, team communication, notebooks, code repositories, and other connected company knowledge or data that could change the answer.
-
-For source-backed analytical work, always verify through live source reads. When the answer depends on data, run fresh data queries against the available structured-data sources before drawing conclusions, even when the semantic layer already names likely tables or definitions.
-
-Use the combined evidence to determine which source controls the answer, note meaningful disagreements, and state why the selected source is authoritative.
+1. **Explore all possible sources.** Search every connected or provided source that could contain task-relevant data or change the interpretation. Within each structured-data source, run fresh catalog or metadata discovery for relevant schemas, datasets, tables, views, models, and metrics. Known sources, tables, dashboards, and semantic mappings are starting points, not stopping points.
+2. **Compare duplicates and conflicts.** When sources overlap or disagree, compare ownership, freshness, definition, grain, coverage, and directness. Use the best authoritative source, or combine complementary sources when needed. Note material conflicts, explain why the selected source or sources control the answer, and verify selected data through live reads before concluding.
 
 ### Source Access Guardrail
 
@@ -55,7 +56,7 @@ Before explaining the movement, confirm that the metric is defined correctly and
 
 Confirm the metric definition, grain, aggregation logic, filters, joins, exclusions, freshness, lineage, and any disagreement between trusted surfaces. Keep this source check focused on issues that could change the answer.
 
-Treat memory, saved context, semantic-layer notes, and familiar table names as source candidates, not source selection. For broad metric questions, run live source discovery against available tables, dashboards, metric docs, semantic registries, or other source-of-truth surfaces before choosing the controlling source. When both are available, inspect at least one business-facing or top-line surface and one lower-level source surface, then state why the selected source owns the answer.
+Treat current context, named semantic layers, and familiar table names as source candidates, not source selection. For broad metric questions, run live source discovery against available tables, dashboards, metric docs, semantic layers, or other source-of-truth surfaces before choosing the controlling source. When both are available, inspect at least one business-facing or top-line surface and one lower-level source surface, then state why the selected source owns the answer.
 
 Use $analyze-data-quality when freshness, grain, joins, missingness, schema drift, outliers, unexpected categories, or distribution shifts could affect trust.
 
@@ -71,7 +72,7 @@ Do not search for causes until the size, timing, and scope of the pattern are ve
 
 Choose the smallest set of cuts and checks likely to explain the pattern or strengthen confidence.
 
-Choose driver dimensions from the metric's operating logic, business context, and source shape. Prioritize drivers the business usually monitors or can act on, not every field available in the source. If the relevant drivers are unclear, use saved context or $gather-business-context to understand how the business explains the metric and what changed around the analysis period.
+Choose driver dimensions from the metric's operating logic, business context, and source shape. Prioritize drivers the business usually monitors or can act on, not every field available in the source. If the relevant drivers are unclear, use current context, a named semantic layer, or $gather-business-context to understand how the business explains the metric and what changed around the analysis period.
 
 When using a lower-level table, do not limit the driver analysis to fields surfaced by the first query. Recreate or join the business grouping needed to answer the question, such as model family, model superfamily, segment, region, cohort, product taxonomy, or customer hierarchy. If the grouping cannot be reconstructed, say so before simplifying the analysis.
 
@@ -119,6 +120,8 @@ The answer should make clear:
 - how much confidence to place in the explanation
 - the implication, next action, or follow-up that matters most
 
+Use $product-business-analysis when the user needs a recommendation or tradeoff decision, not just the diagnostic implication.
+
 Keep implications distinguishable from verified factual reporting so a reader can tell where evidence ends and interpretation begins. Do not claim causality from timing alone; state when an explanation is only a plausible hypothesis.
 
 Use $gather-business-context when the metric result is clear but business context is needed to interpret the `so what` or identify realistic next actions.
@@ -127,4 +130,4 @@ Use $validate-data when methodology, calculations, caveats, or the evidentiary s
 
 Do not treat artifact or report validation as analytical validation. Before handing off, confirm the analysis has the headline metric movement, driver contribution shares or effect sizes, source/window reconciliation, exact executed SQL or query references when queries were used, and caveats that would change interpretation.
 
-Pass the diagnostic substance and supporting evidence to $build-report. Let $build-report own the report surface, presentation polish, reproducibility treatment, and sharing handoff.
+Pass the diagnostic substance and supporting evidence to $build-report unless the user explicitly requests an inline, chat-only, brief/no-artifact answer, asks not to create a report/file/artifact, or selects another primary artifact. This handoff is mandatory when no explicit human waiver was given; do not infer a waiver because the user asked a direct diagnostic question or did not use the word "report". Let $build-report own the report surface, presentation polish, reproducibility treatment, and sharing handoff.

@@ -32,10 +32,10 @@ defaults:
 input_notes:
   source_type:
     required: true
-    guidance: "Choose the best grounded evidence path. Prefer `meeting_notes` first, then meeting recording when those sources can be retrieved in the user's environment; use pasted text, `document_store`, or `external_messaging` when they are the best available fallback."
+    guidance: "Choose the best grounded evidence path. Prefer ~~Meeting Transcripts first, then meeting recording when those sources can be retrieved in the user's environment; use pasted text, ~~Knowledge & Files, or ~~Email when they are the best available fallback."
   evidence:
     required: true
-    guidance: "Use direct transcript text, a retrievable source reference such as a `meeting_notes` call id, meeting recording title/link, `external_messaging` link, or `document_store` URL, or a linked/exported transcript artifact."
+    guidance: "Use direct transcript text, a retrievable ~~Meeting Transcripts source reference, meeting recording title/link, ~~Email link, ~~Knowledge & Files URL, or a linked/exported transcript artifact."
   account_name:
     required: false
     guidance: "Use when already known or when it can be resolved confidently from the source."
@@ -53,7 +53,7 @@ input_notes:
     guidance: "Only use if it is clearly an internal account channel."
   opportunity_name:
     required: false
-    guidance: "If given, use as the primary candidate for the `crm` next-steps sentence."
+    guidance: "If given, use as the primary candidate for the ~~CRM next-steps sentence."
   opportunity_link:
     required: false
     guidance: "Use only to disambiguate the target opportunity."
@@ -65,6 +65,6 @@ normalization_rules:
   - "Normalize unknown names, dates, and owners to the configured markers."
   - "Treat a company/account plus a recent relative timeframe, such as 'my call with Acme earlier today,' as a retrievable evidence reference for meeting notes or transcripts, not as a request to ask for pasted notes first."
   - "Preserve direct evidence wording for decisions, asks, and commitments when possible."
-  - "Treat `crm` and `document_store` account context as enrichment lanes, not the primary call-evidence source."
+  - "Treat ~~CRM and ~~Knowledge & Files account context as enrichment lanes, not the primary call-evidence source."
   - "For meeting recording, require enough identifiers to distinguish the transcript: title, date or timeframe, customer name, and one to two keywords when a direct link is not provided."
   - "If direct meeting recording retrieval is unavailable in the current environment, retain the source_type and degrade to exported transcript text or linked doc evidence."

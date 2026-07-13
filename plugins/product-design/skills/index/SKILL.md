@@ -1,11 +1,11 @@
 ---
 name: index
-description: "Use to discover specific skills for the Product Design plugin, when it is at-mentioned directly, or for any mentions of potentially relevant work, including: UX research; product, screen, or flow audits; visual ideation; app or interface design, redesign, cloning, prototyping, or implementation from ideas, URLs, images, Figma, or code; design QA; and prototype sharing or deployment."
+description: "Use when Product Design is explicitly invoked, or when the user's main goal is to explore a design, research UX, audit or critique a flow, faithfully clone a visual source, check a built design, or share a prototype. Do not use Product Design for ordinary implementation unless the user explicitly asks for it."
 ---
 
 # Skill Purpose
 
-Route Product Design requests to the right Product Design skill. Treat an `@Product Design` mention, direct Product Design invocation, or broad request like "design this app", "build a prototype", "audit this flow", "research this product", or "share this prototype" as intent to use this plugin.
+Route Product Design requests to the right Product Design skill. Use this plugin for an `@Product Design` mention, a direct Product Design request, or a request mainly about design exploration, faithful source cloning, audits, research, critique, or sharing. A request is not Product Design just because it mentions UI, a prototype, or visual style.
 
 # Plugin Purpose
 
@@ -29,22 +29,57 @@ Speak to the user in a warm, fun, and collaborative way, prioritizing pithy expl
 
 ## Router Only
 
-This index routes Product Design requests; it does not satisfy focused workflows itself.
+This index chooses the next Product Design skill. It does not do that skill's work.
 
-When a request matches `$user-context`, `$get-context`, `$research`, `$ideate`, `$prototype`, `$image-to-code`, `$url-to-code`, `$audit`, `$design-qa`, or `$share`, load the focused skill and follow it.
+If the user names a focused skill, read that exact skill first. Do not replace it with a related skill.
 
-For visual ideation requests, load `$get-context` first, then `$ideate`.
+When a request matches `$user-context`, `$get-context`, `$research`, `$ideate`, `$image-to-code`, `$url-to-code`, `$audit`, `$design-qa`, or `$share`, load the focused skill and follow it.
+
+For requests to audit, review, critique, inspect, assess, analyze, evaluate, or give feedback on an existing product experience, load `$audit` directly; do not load `$get-context` first. If the same request also asks to build, fix, redesign, or implement afterward, run `$audit` first, then continue through the appropriate normal workflow.
+
+For visual ideation, `$ideate` is the focused workflow. Use `$get-context` to resolve the minimum brief and play back any defaults before `$ideate` starts.
+
+For clone or recreation of a live URL, load `$url-to-code` directly.
+
+For a redesign, improvement, or new site based on a URL, use `$get-context` to confirm the redesign brief. `Like <URL>` means redesign, not clone. Capture the current site with screenshots, attach those screenshots to the `$ideate` Image Gen calls, then execute `$ideate`.
+
+## Standard Chat Mode
+
+If Product Design is invoked in standard ChatGPT chat without Work Mode tools, do not start the workflow. Tell the user once:
+
+```text
+Chat isn't supported by the Product Design plugin. Please switch to the Work tab and paste this prompt in for the full experience.
+```
+
+Do not ask design-brief questions, generate options, or begin build work until the user moves to Work Mode.
+
+## Browser Choice
+
+In ChatGPT Work Mode, always use the cloud browser available to that chat. If it is not initially visible, load the Browser skill and follow its setup instructions before concluding it is unavailable.
+
+In Codex Desktop, use `@Browser` and explicitly select the in-app surface with `agent.browsers.get("iab")`.
+
+In Codex Desktop, use Chrome only when the user asks for it, the task needs an existing Chrome tab/login/profile/extension, or the in-app Browser is unavailable or blocked.
+
+If ChatGPT Work Mode does not expose both the cloud browser and `@Sites` after preflight, tell the user once:
+
+```text
+Cloud browser and Sites are not available in this chat. I can still build a single-page HTML prototype, but I cannot visually verify it or publish a live checkpoint, so fidelity and interaction polish may be lower. Continue with that fallback?
+```
+
+Only proceed after the user agrees. Do not claim the fallback is verified, open, hosted, or ready to share. This fallback applies to image-to-code and new prototypes. It does not apply to URL-to-code when browser capture is required.
 
 ## No Visual Target, No Build
 
 For new app, prototype, redesign, or UI build requests without a URL, screenshot, Figma frame, mockup, source image, or existing code target:
 
-- Run `$get-context`.
-- After the brief is approved, route to `$ideate`.
+- `$ideate` is the focused workflow.
+- Use `$get-context` to resolve the minimum brief.
+- Once the target and intended user outcome are clear, play back the assumptions and run `$ideate` in the same turn.
 - Show exactly three visual options and wait for the user to choose one.
 - Do not scaffold, edit files, or start a server before a visual option is selected.
 
-`Full working version`, `no refs`, `go for it`, `make an assumption`, or a confirmed brief do not waive this.
+`Full working version`, `no refs`, `go for it`, `make an assumption`, or a complete brief do not waive this.
 
 ## User Context
 
@@ -63,13 +98,7 @@ Adjust the context-gathering request to match the user's request. First-time set
 
 For setup-only requests, do not inspect the workspace, install dependencies, scaffold a prototype, generate images, run audits, or start implementation.
 
-When answering "what can you do?", "how do I get started?", or similar broad Product Design questions, end by asking whether the user wants to set up saved context.
-
-Use this close:
-
-```text
-Want to onboard Product Design with your context? Send product URLs, Figma files, screenshots, codebase paths, Storybook links, tokens, brand assets, or preferred share targets, and I'll save them for future work.
-```
+When answering "what can you do?", "how do I get started?", or similar broad Product Design questions, load `$user-context` and follow its persistence availability check before offering saved-context onboarding.
 
 Before routing to Product Design workflows, load [$user-context](../user-context/SKILL.md) and run its preflight script when local shell access is available.
 
@@ -91,7 +120,7 @@ Preflight, save, or answer from Product Design setup context. Route here before 
 
 ### $get-context
 
-Route here first for design, build, prototype, redesign, extend, or UI exploration work. If details are missing, ask only for the missing product, visual, or interactivity context; if details are already present, play back the brief before proceeding. Confirm the design brief back to the user before Product Design ideation or implementation.
+Route here first for design, build, prototype, redesign, extend, or UI exploration work. Require only a clear design target and intended user outcome. Ask one targeted question only when one of those is missing; otherwise play back the brief and defaults, then continue without waiting for approval.
 
 ### $research
 
@@ -99,23 +128,19 @@ Run fast, source-grounded UX research on current user problems for a named digit
 
 ### $audit
 
-Capture and review a product flow, journey, screen, or multi-step product experience from screenshots. Route here for user-facing audit, critique, review, inspect, assess, or UI evaluation requests. It reports UX, design, and accessibility findings tied to captured evidence; do not use `design-qa` for user-facing audits.
+Capture and review a product flow, journey, screen, or multi-step product experience from screenshots. Route here for user-facing audit, review, critique, inspect, assess, analyze, evaluate, or feedback requests. It reports UX, design, and accessibility findings tied to captured evidence; do not use `design-qa` for user-facing audits.
 
 ### $ideate
 
-Generate image-based visual alternatives, remixes, or concept directions for a component, screen, feature, workflow, or product idea. Route here after `get-context` has confirmed the design brief and the user needs visual exploration, design variants, alternatives to an existing design, or idea discovery before choosing a visual target. Prefer this over prose-only ideation unless the user asks for prose.
-
-### $prototype
-
-Route coded prototype, redesign, clone, and UI build requests to the right Product Design workflow. Route here after `get-context` has confirmed the design brief and the user asks to build from a URL, image, mockup, Figma source, existing codebase, or product idea.
+Generate image-based visual alternatives, remixes, or concept directions for a component, screen, feature, workflow, or product idea. Route here after `get-context` has played back the minimum brief and the user needs visual exploration, design variants, alternatives to an existing design, or idea discovery before choosing a visual target. Prefer this over prose-only ideation unless the user asks for prose.
 
 ### $url-to-code
 
-Clone a live URL as a runnable frontend-only local app using Browser or Chrome source evidence. Route here after `get-context` has confirmed the brief and the user provides a production URL for a faithful local prototype or clone. It should not modify production code; use `prototype` first when source selection is still unclear.
+Clone a live URL as a runnable frontend-only local app using the Browser Choice rule above. Load this alongside `get-context` when the user provides a production URL for a faithful local prototype or clone, but do not execute it until the minimum brief has been played back. It should not modify production code; stay in `get-context` when source selection is still unclear.
 
 ### $image-to-code
 
-Implement a selected visual target as a faithful, responsive, interactive frontend. Route here after `get-context` has confirmed the brief and the user has chosen an ImageGen mock, screenshot, Figma frame, mockup, reference image, or other visual source. Do not start here when no visual target has been selected; use `get-context` and `ideate` first.
+Implement a selected visual target as a faithful, responsive, interactive frontend. Route here after `get-context` has played back the minimum brief and the user has chosen an ImageGen mock, screenshot, Figma frame, mockup, reference image, or other visual source. Do not start here when no visual target has been selected; use `get-context` and `ideate` first.
 
 ### $share
 

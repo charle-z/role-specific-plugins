@@ -154,11 +154,11 @@
 
 .chart-frame--heatmap {
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chart-frame--heatmap > .chart-plot {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chart-frame--custom > .chart-plot > * {
@@ -226,6 +226,20 @@
   background: var(--ds-chart-tooltip-bg);
   box-shadow: var(--ds-shadow, 0 20px 25px -5px rgba(0, 0, 0, 0.1));
   color: var(--ds-chart-text);
+}
+
+@keyframes chart-tooltip-reveal {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.recharts-tooltip-wrapper .chart-tooltip {
+  animation: chart-tooltip-reveal 80ms ease both;
 }
 
 .chart-tooltip-label {
@@ -506,7 +520,7 @@ button.leaderboard-caption:focus-visible {
   height: 100%;
   min-height: 0;
   max-height: 100%;
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: contain;
 }
 

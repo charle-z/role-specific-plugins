@@ -8,7 +8,7 @@ const readline = require("node:readline");
 const childProcess = require("node:child_process");
 const zlib = require("node:zlib");
 
-const SERVER_NAME = "datascience-widgets";
+const SERVER_NAME = "data-analytics-widgets";
 const PLUGIN_ROOT = path.resolve(__dirname, "..");
 const PLUGIN_MANIFEST = JSON.parse(
   fs.readFileSync(path.join(PLUGIN_ROOT, ".codex-plugin", "plugin.json"), "utf8"),
@@ -27,7 +27,11 @@ const DATA_ANALYTICS_LOGO = {
 const DATA_ANALYTICS_ICONS = [DATA_ANALYTICS_ICON, DATA_ANALYTICS_LOGO];
 const TABLE_WIDGET_URI = "ui://widget/datascience-table.html";
 const CHART_WIDGET_URI = "ui://widget/datascience-chart.html";
-const ARTIFACT_WIDGET_URI = "ui://widget/datascience-artifact.html";
+const ARTIFACT_WIDGET_BASE_URI = "ui://widget/datascience-artifact.html";
+const ARTIFACT_WIDGET_URI =
+  `ui://widget/datascience-artifact-${encodeURIComponent(SERVER_VERSION)}.html`;
+const ARTIFACT_WIDGET_LEGACY_VERSIONED_URI =
+  `${ARTIFACT_WIDGET_BASE_URI}?v=${encodeURIComponent(SERVER_VERSION)}`;
 const WIDGET_MIME_TYPE = "text/html;profile=mcp-app";
 const MEASURE_NAMES_FIELD = "__measure_names__";
 const WIDGET_RESOURCE_DOMAINS = ["https://cdn.openai.com"];
@@ -38,6 +42,8 @@ const TOOL_NAMES = {
   renderChart: "render_chart",
   renderTable: "render_table",
 };
+const VALUE_FORMAT_DESCRIPTION =
+  'Display format for numeric values. Use "percent" only for fractional-rate values: pass 0.98 for 98%, 1 for 100%, and 2 for 200%. If reviewed data is already in percentage points such as 98, use "number" with unit "%".';
 const MAX_WIDGET_ROWS = 500;
 const MAX_WIDGET_COLUMNS = 80;
 const MAX_WIDGET_DATA_POINTS = 2000;
@@ -143,6 +149,26 @@ const WIDGET_DESCRIPTIONS = {
       "app with field wells for re-encoding exploration-ready rows.",
     ].join(" "),
 };
+const WEB_WORK_MODE_WIDGET_DELIVERY_GUARD = [
+  "When surface = chatgpt_web and mode = work_mode are both positively identified,",
+  "or when mode = work_mode is positive and surface is unknown or otherwise not positively codex_desktop,",
+  "do not call render_artifact, render_chart, or render_table to deliver visuals or reports;",
+  "the trusted Work Mode rendering path may drop standalone plugin widgets that lack appContext.",
+  "Preserve the delivery mode already selected by the owning workflow. For already-selected inline",
+  "visuals with exactly one supported bar, line, pie, or scatter chart, treat charts_widget_v2 as",
+  "directly surfaced and emit its live genui content reference before fallback; use the outer shape",
+  "genui{\"charts_widget_v2\":{\"content\":{...}}} without Markdown backticks, not",
+  "standalone assistant text; do not self-declare it unavailable, search for it, or print its payload",
+  "as bare JSON. Keep app_block conditional on",
+  "the host surfacing it for a richer composition.",
+  "Use image-based/static charting only after an",
+  "emitted native reference is rejected or fails to render, or when no suitable native renderer exists;",
+  "then use a compact table or other non-MCP fallback only when no visual renderer can be delivered.",
+  "For selected reports or dashboards, use HTML or another non-MCP",
+  "surface. Use image-based/static charting for that native-render failure fallback or when the user",
+  "explicitly requests Python, a static image/file, notebook-oriented output, or export. Do not",
+  "say a visual rendered above unless the selected non-MCP or native Work Mode surface actually rendered.",
+].join(" ");
 const SERVER_INSTRUCTIONS = [
   "Before rendering a report or dashboard artifact, call validate_artifact with the",
   "complete manifest and bounded snapshot. Fix validation errors there first; do not use",
@@ -151,6 +177,7 @@ const SERVER_INSTRUCTIONS = [
   "complete Data Analytics dashboard or report manifest with a bounded snapshot inside the MCP app;",
   "this is the default reader handoff for report and dashboard work and should be attempted before",
   "static HTML, localhost, or file:// delivery.",
+  WEB_WORK_MODE_WIDGET_DELIVERY_GUARD,
   "Artifact snapshots must be bounded: at most 50 datasets, 2,000 rows per dataset, 3MB total",
   "payload, and 200k total inline source characters. Use the canonical artifact snapshot shape:",
   "snapshot.datasets is an object keyed by dataset id, and each value is a plain array of row objects",
@@ -164,9 +191,16 @@ const SERVER_INSTRUCTIONS = [
   "Cards, charts, and tables define reusable renderable assets; blocks establish the artifact",
   "reading order. Report artifacts must include at least one chart data visualization block and",
   "a first markdown block whose body is a # heading matching manifest.title.",
+  "Give each independently editable major report section its own markdown block. Do not put",
+  "multiple peer ## headings in one markdown body; reserve ### headings for subordinate content",
+  "that should remain in the same card. One headline metric does not mean one metrics[] entry:",
+  "keep short, directly relevant directional comparisons as later labeled badge metrics, especially",
+  "when the same comparison appears in the executive summary or findings.",
   "Native artifact charts must use encodings.x.field plus encodings.y.field or encodings.y.fields,",
   "with optional encodings.color.field for grouped tidy data. Legacy manifest chart fields",
   "xField and series are rejected; use validate_artifact to check chart shape before rendering.",
+  "Give each native artifact table a defaultSort with a declared column field and asc or desc",
+  "direction chosen to make the initial row order describe the data clearly.",
   "When a validated MCP artifact report or dashboard needs a hosted Site Creator link, call",
   "export_artifact_package and deploy that package instead of hand-rolling standalone HTML.",
   "The exporter preserves the real artifact runtime and serves /api/manifest, /api/snapshot,",
@@ -284,6 +318,7 @@ function toolDefinitions() {
       format: {
         type: ["string", "null"],
         enum: ["compact", "number", "percent", "currency", null],
+        description: VALUE_FORMAT_DESCRIPTION,
       },
       unit: { type: ["string", "null"] },
       align: { type: ["string", "null"], enum: ["left", "right", "center", null] },
@@ -480,6 +515,7 @@ function toolDefinitions() {
   const artifactMetricFormat = {
     type: ["string", "null"],
     enum: ["compact", "number", "percent", "currency", null],
+    description: VALUE_FORMAT_DESCRIPTION,
   };
   const artifactCardMetric = objectSchema(
     {
@@ -505,13 +541,19 @@ function toolDefinitions() {
       id: { type: "string" },
       description: { type: ["string", "null"] },
       dataset: { type: "string" },
+      sourceId: {
+        type: ["string", "null"],
+        description:
+          "Reference to manifest.sources[] for this card's data-source modal. Required for cards used by dashboard or report metric-strip blocks unless source is provided inline.",
+      },
+      source: sourceSchema,
       filter: { type: "object", additionalProperties: scalar },
       metrics: {
         type: "array",
         minItems: 1,
         items: artifactCardMetric,
         description:
-          "Metric card values. Use metrics[].field; do not use legacy card fields such as valueField, deltaField, label, title, format, or indicators.",
+          "One headline metric followed by concise comparison context for that same metric, such as a prior-period value, target, or delta. One headline does not mean one metrics[] entry: include a short directional comparison when it is decision-relevant, especially when the same comparison appears in the executive summary or findings. Put independent secondary metrics in their own cards, charts, tables, or narrative. Use metrics[].field and signed: true for signed changes; do not use legacy card fields such as valueField, deltaField, label, title, format, or indicators.",
       },
     },
     ["id", "dataset", "metrics"],
@@ -620,6 +662,20 @@ function toolDefinitions() {
     },
     ["field", "label"],
   );
+  const artifactTableDefaultSort = objectSchema(
+    {
+      field: {
+        type: "string",
+        description: "Declared table column field used for the initial row order.",
+      },
+      direction: {
+        type: "string",
+        enum: ["asc", "desc"],
+        description: "Initial sort direction.",
+      },
+    },
+    ["field", "direction"],
+  );
   const artifactTable = objectSchema(
     {
       id: { type: "string" },
@@ -632,6 +688,11 @@ function toolDefinitions() {
       sourceId: { type: ["string", "null"] },
       source: sourceSchema,
       layout: { type: ["string", "null"] },
+      defaultSort: {
+        ...artifactTableDefaultSort,
+        description:
+          "Initial table sort chosen to make the first view answer the table's question. The field must appear in columns.",
+      },
       columns: {
         type: "array",
         minItems: 1,
@@ -652,12 +713,14 @@ function toolDefinitions() {
       body: {
         type: "string",
         description:
-          'Block body for markdown or html blocks. Markdown blocks render body; do not use "markdown", "content", "text", "title", "html", or "height" block fields.',
+          'Block body for markdown or html blocks. Give each independently editable major report section its own markdown block with one peer ## heading; use ### only for subordinate content that belongs in the same card. Markdown blocks render body; do not use "markdown", "content", "text", "title", "html", or "height" block fields.',
       },
       cardIds: {
         type: "array",
+        minItems: 1,
         items: { type: "string" },
-        description: 'Required for type "metric-strip"; references manifest.cards[].id.',
+        description:
+          'Required for type "metric-strip"; references one or more manifest.cards[].id values in display order. There is no preferred or maximum card count: include all and only decision-relevant metrics.',
       },
       chartId: {
         type: "string",
@@ -700,7 +763,7 @@ function toolDefinitions() {
         items: artifactBlock,
         default: [],
         description:
-          "Top-level artifact blocks. Required for dashboards and reports; array order is the artifact reading path. Markdown blocks use type \"markdown\" with body: string. Metric strips use type \"metric-strip\" with cardIds. Custom HTML blocks use type \"html\" with raw HTML in body and auto-size to content. The content, text, markdown, title, html, and height fields are not part of the artifact block contract.",
+          "Top-level artifact blocks. Required for dashboards and reports; array order is the artifact reading path. Markdown blocks use type \"markdown\" with body: string. Give each independently editable major report section its own markdown block rather than putting multiple peer ## headings in one body. Metric strips use type \"metric-strip\" with cardIds. Custom HTML blocks use type \"html\" with raw HTML in body and auto-size to content. The content, text, markdown, title, html, and height fields are not part of the artifact block contract.",
       },
     },
     required: ["version", "title", "blocks"],
@@ -799,6 +862,11 @@ function toolDefinitions() {
         "artifact cards. snapshot.accessIssues is reserved for missing required data in partial",
         "or blocked artifacts; use markdown body blocks or source notes for optional source limitations in",
         "ready artifacts. All artifacts require manifest.title and manifest.blocks.",
+        "Do not use this tool as the report delivery surface in positively identified",
+        "ChatGPT web Work Mode, or when mode = work_mode is positive and surface is",
+        "unknown or otherwise not positively codex_desktop; use HTML or another non-MCP",
+        "surface instead because that trusted rendering path can drop standalone plugin widgets without appContext.",
+        "A successful tool result is not delivery confirmation in that runtime.",
         "Refresh and export controls are v1 agent-mediated prompts; do not",
         "include live connector refresh actions.",
       ].join(" "),
@@ -830,6 +898,19 @@ function toolDefinitions() {
       [
         "Render a compact Data Analytics chart from already-reviewed provenance and table data.",
         "Pass source.query.sql with the actual SQL used to produce the chart table, plus source.query.description for the human-readable query summary, an exploration-ready table, chart, and display.",
+        "Do not call this tool for inline visual delivery in positively identified ChatGPT web Work Mode",
+        "or when mode = work_mode is positive and surface is unknown or otherwise not positively codex_desktop;",
+        "for an already-selected inline visual with exactly one supported bar, line, pie, or scatter chart,",
+        "treat charts_widget_v2 as directly surfaced and emit its live genui content reference before fallback;",
+        "use the outer shape genui{\"charts_widget_v2\":{\"content\":{...}}} without Markdown",
+        "backticks, not standalone assistant text; do not self-declare it unavailable, search for it,",
+        "or print its payload as bare JSON.",
+        "Keep app_block conditional on the host surfacing it for a richer composition.",
+        "Use image-based/static charting only after an emitted native reference is rejected or fails to render,",
+        "or when no suitable native renderer exists, with a compact table or other non-MCP fallback only",
+        "when no visual renderer can be delivered.",
+        "Use image-based/static charting for that native-render failure fallback or when the user explicitly requests Python, a static image/file, notebook-oriented output, or export.",
+        "A successful tool result is not delivery confirmation in that runtime.",
         "Use the subtitle for a reader-facing insight or takeaway not covered by the title, not for source names, query ids, table names, SQL intent, metric definitions, or provenance.",
         "The table should retain useful",
         "dimensions, measures, time columns, and grouping columns so users can change",
@@ -855,6 +936,10 @@ function toolDefinitions() {
         "or exact lookup rows. Use after running a durable query when the user should see the",
         "sampled rows that support the analysis. Pass source.query.sql with the same actual SQL",
         "source payload shape used by chart widgets so the expanded table detail view can show the query.",
+        "Do not call this tool for inline table delivery in positively identified ChatGPT web Work Mode",
+        "or when mode = work_mode is positive and surface is unknown or otherwise not positively codex_desktop;",
+        "use native Work Mode table rendering when available, or a compact conversational/static table fallback.",
+        "A successful tool result is not delivery confirmation in that runtime.",
       ].join(" "),
       tableInputSchema,
       TABLE_WIDGET_URI,
@@ -863,7 +948,14 @@ function toolDefinitions() {
 }
 
 function canonicalWidgetUri(uri) {
-  if (uri === ARTIFACT_WIDGET_URI) return ARTIFACT_WIDGET_URI;
+  if (
+    uri === ARTIFACT_WIDGET_URI ||
+    uri === ARTIFACT_WIDGET_BASE_URI ||
+    uri === ARTIFACT_WIDGET_LEGACY_VERSIONED_URI ||
+    uri.startsWith(`${ARTIFACT_WIDGET_BASE_URI}?v=`)
+  ) {
+    return ARTIFACT_WIDGET_URI;
+  }
   if (uri === TABLE_WIDGET_URI) return TABLE_WIDGET_URI;
   if (uri === CHART_WIDGET_URI) return CHART_WIDGET_URI;
   return null;
@@ -1293,6 +1385,25 @@ function validateReportRenderableTable(table, fieldPath) {
   });
 }
 
+function validateArtifactTableDefaultSort(table, fieldPath) {
+  if (table.defaultSort == null) return;
+  if (!isPlainObject(table.defaultSort)) {
+    throw new Error(`${fieldPath}.defaultSort must be an object`);
+  }
+  requireIdentifier(table.defaultSort.field, `${fieldPath}.defaultSort.field`);
+  if (!["asc", "desc"].includes(table.defaultSort.direction)) {
+    throw new Error(`${fieldPath}.defaultSort.direction must be asc or desc`);
+  }
+  const columnFields = new Set(
+    asList(table.columns)
+      .filter(isPlainObject)
+      .map((column) => column.field),
+  );
+  if (!columnFields.has(table.defaultSort.field)) {
+    throw new Error(`${fieldPath}.defaultSort.field must reference a declared table column`);
+  }
+}
+
 function validateArtifactBlockManifestShape(manifest, surface) {
   if (manifest.blocks != null && !Array.isArray(manifest.blocks)) {
     throw new Error("$.manifest.blocks must be an array of top-level artifact blocks");
@@ -1419,7 +1530,7 @@ function validateArtifactManifest(manifest, surface) {
     for (const key of ["valueField", "format", "label", "title", "indicators", "deltaField", "deltaLabel"]) {
       if (card[key] != null) throw new Error(`$.manifest.cards[${index}].${key} is not supported; use metrics[]`);
     }
-    for (const key of ["id", "dataset"]) {
+    for (const key of ["id", "dataset", "sourceId"]) {
       validateIdentifier(card[key], `$.manifest.cards[${index}].${key}`);
     }
     if (!Array.isArray(card.metrics) || !card.metrics.length) {
@@ -1455,6 +1566,7 @@ function validateArtifactManifest(manifest, surface) {
       }
       validateIdentifier(column.field, `$.manifest.tables[${index}].columns[${columnIndex}].field`);
     });
+    validateArtifactTableDefaultSort(table, `$.manifest.tables[${index}]`);
   });
 
   validateArtifactBlockManifestShape(manifest, surface);
@@ -1597,6 +1709,19 @@ function validateArtifactChartDataCompatibility(manifest, snapshot) {
 }
 
 function validateArtifactSourceQueries(manifest, sources) {
+  const cardIds = new Set(
+    asList(manifest.blocks)
+      .filter((block) => isPlainObject(block) && block.type === "metric-strip")
+      .flatMap((block) => asList(block.cardIds))
+      .filter((cardId) => typeof cardId === "string"),
+  );
+  asList(manifest.cards).forEach((card, index) => {
+    if (!isPlainObject(card) || !cardIds.has(card.id)) return;
+    const cardSource = sourceForArtifactItem(card, sources);
+    validateActualSqlSource(cardSource, `$.manifest.cards[${index}].source`, {
+      allowSqlFile: true,
+    });
+  });
   const chartBlocks = new Set(
     asList(manifest.blocks)
       .filter((block) => isPlainObject(block) && block.type === "chart" && typeof block.chartId === "string")
@@ -2693,7 +2818,6 @@ function chartSpecFromVisualizationSpec(spec, args, resultTable, id = "chart") {
   const lineStyleField = encodingField(spec, "lineStyle");
   const xAxisTitle = axisTitleForField(spec, args, resultTable, "x", xField);
   const yAxisTitle = axisTitleForField(spec, args, resultTable, "y", yField);
-  const horizontal = isHorizontalBarType(spec.visualization_type, spec.settings);
   const encodings = {};
   encodings.x = chartEncodingForField(spec, resultTable, "x", xField);
   if (usesMultiMeasureSeries(spec)) {
@@ -2728,8 +2852,8 @@ function chartSpecFromVisualizationSpec(spec, args, resultTable, id = "chart") {
     type: spec.visualization_type,
     dataset: String(firstValue(args.id, args.label, "default")),
     ...(Object.keys(encodings).length ? { encodings } : {}),
-    xAxisTitle: horizontal ? yAxisTitle : xAxisTitle,
-    yAxisTitle: horizontal ? xAxisTitle : yAxisTitle,
+    xAxisTitle,
+    yAxisTitle,
     unit: presentationValue(spec, args, "unit"),
     valueFormat: columnValueFormat(resultTable, yField) || undefined,
     settings: spec.settings,
@@ -2860,7 +2984,7 @@ async function handleRpc(message) {
         },
         serverInfo: {
           name: SERVER_NAME,
-          title: "Data Analytics Widgets",
+          title: "Data Analytics",
           version: SERVER_VERSION,
           description: "Render Data Analytics charts, tables, dashboards, and report artifacts.",
           icons: DATA_ANALYTICS_ICONS,

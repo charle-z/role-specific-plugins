@@ -47,7 +47,7 @@ surfaces:
   dashboard: { shell_width: "1140px", content_width: "full", outer_padding_x: "24px", role: "visualization-first workspace" }
 components:
   top-bar: { height: "48px", padding: "8px 12px", typography: "text/sm/medium" }
-  metric-card: { width: "186px in report rows", padding: "16px 24px", rounded: "corner-radius/cr-24", stroke: "border/light" }
+  metric-card: { min-width: "280px", padding: "20px", rounded: "corner-radius/cr-24", stroke: "border/light" }
   report-block: { width: "800px default", rounded: "corner-radius/cr-24", stroke: "border/light" }
   chart-block: { width: "full when needed", title: "text/sm/medium", body: "text/sm/normal" }
   table-list: { width: "800px in report context", cell: "text/sm/normal", header: "text/xs/semibold" }
@@ -158,8 +158,8 @@ Top bar:
 
 Metric card:
 
-- Reference report size: 186px wide by 114px tall in a four-card row.
-- Padding: 16px vertical, 24px horizontal.
+- Use a 280px content-safe minimum width and match the tallest card in each row. Dashboard and report strips balance any declared card count responsively; four columns are allowed only when four cards fit without wrapping, and four is neither a target nor a maximum.
+- Padding: 20px on all sides.
 - Radius: `corner-radius/cr-24`.
 - Stroke: `border/light`.
 - Label: `text/xs/normal` or `text/xs/semibold`.

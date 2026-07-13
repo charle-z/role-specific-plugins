@@ -9,12 +9,14 @@ Slides with the Google Drive connector.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import math
 import re
 import sys
 import zipfile
 from dataclasses import asdict, dataclass, field
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -115,6 +117,7 @@ class ChartItem:
     takeaway: str
     caveat: str
     svg_markup: str
+    image_src: str = ""
     css_text: str = ""
     image_path: str = ""
     width_px: int = 0
@@ -511,6 +514,52 @@ def chart_semantic_label(svg: Tag) -> str:
     return ""
 
 
+def image_semantic_label(img: Tag) -> str:
+    for attr in ("alt", "aria-label", "data-title", "title"):
+        value = collapse_ws(str(img.get(attr) or ""))
+        if value and looks_like_chart_title_candidate(value):
+            return value
+    return ""
+
+
+def image_caption_text(img: Tag) -> str:
+    figure = img if img.name == "figure" else img.find_parent("figure")
+    if not isinstance(figure, Tag):
+        return ""
+    for selector in ["figcaption", ".caption"]:
+        caption = figure.select_one(selector)
+        if isinstance(caption, Tag):
+            text = text_of(caption)
+            if text:
+                return text
+    return ""
+
+
+def data_uri_png_bytes(src: str) -> bytes | None:
+    match = re.match(
+        r"^data:image/png;base64,(.+)$",
+        src.strip(),
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        return None
+    try:
+        return base64.b64decode(re.sub(r"\s+", "", match.group(1)), validate=False)
+    except Exception:
+        return None
+
+
+def embedded_png_dimensions(src: str) -> tuple[int, int]:
+    raw = data_uri_png_bytes(src)
+    if raw is None:
+        return 0, 0
+    try:
+        with Image.open(BytesIO(raw)) as image:
+            return image.size
+    except Exception:
+        return 0, 0
+
+
 def chart_title_score(text: str) -> float:
     words = re.findall(r"[A-Za-z][A-Za-z0-9_-]*", text)
     score = min(len(words), 14) * 0.8
@@ -548,6 +597,14 @@ def is_material_chart_svg(svg: Tag, width_px: int, height_px: int) -> bool:
     if width_px >= 280 and height_px >= 170 and len(visual_marks) >= 3:
         return True
     return width_px >= 420 and height_px >= 240 and bool(visual_marks)
+
+
+def is_material_chart_image(img: Tag, width_px: int, height_px: int) -> bool:
+    if width_px < 180 or height_px < 110:
+        return False
+    if image_semantic_label(img) or image_caption_text(img):
+        return True
+    return width_px >= 420 and height_px >= 240
 
 
 def is_chart_note_text(text: str) -> bool:
@@ -604,13 +661,18 @@ def iter_content_blocks(node: Tag) -> list[Tag]:
     if node.name in {"h2", "h3", "h4"}:
         return []
     classes = set(node.get("class") or [])
-    if node.name in {"p", "ul", "ol", "table", "svg"}:
+    if node.name in {"p", "ul", "ol", "table", "svg", "img"}:
         return [node]
     if "figure" in classes and node.find("svg"):
         return [node]
+    if (node.name == "figure" or "figure" in classes) and node.find("img"):
+        return [node]
     direct_svg = node.find("svg", recursive=False)
+    direct_img = node.find("img", recursive=False)
     direct_text_blocks = node.find(["p", "ul", "ol", "table"], recursive=False)
     if direct_svg and not direct_text_blocks:
+        return [node]
+    if direct_img and not direct_text_blocks:
         return [node]
 
     blocks: list[Tag] = []
@@ -714,6 +776,44 @@ def add_chart_item(
     )
 
 
+def add_embedded_png_chart_item(
+    charts: list[ChartItem],
+    img_container: Tag,
+    section_title: str,
+    next_para: str,
+    prior_items: list[str],
+    parsed_img_ids: set[int],
+) -> None:
+    img = img_container if img_container.name == "img" else img_container.find("img")
+    if not isinstance(img, Tag) or id(img) in parsed_img_ids:
+        return
+    parsed_img_ids.add(id(img))
+
+    src = str(img.get("src") or "").strip()
+    if not src or data_uri_png_bytes(src) is None:
+        return
+    width_px, height_px = embedded_png_dimensions(src)
+    if not is_material_chart_image(img, width_px, height_px):
+        return
+
+    chart_title = (
+        image_semantic_label(img) or first_sentence(image_caption_text(img), 120) or section_title
+    )
+    context_text = chart_context_text(section_title, chart_title, next_para, prior_items)
+    charts.append(
+        ChartItem(
+            index=len(charts) + 1,
+            title=chart_title,
+            takeaway=chart_takeaway(chart_title, context_text),
+            caveat=context_text,
+            svg_markup="",
+            image_src=src,
+            width_px=width_px,
+            height_px=height_px,
+        )
+    )
+
+
 def parse_sections_and_charts(
     soup: BeautifulSoup,
     style_text: str,
@@ -722,6 +822,7 @@ def parse_sections_and_charts(
     charts: list[ChartItem] = []
     tables: list[TableItem] = []
     parsed_svg_ids: set[int] = set()
+    parsed_img_ids: set[int] = set()
     parsed_table_ids: set[int] = set()
 
     for heading in soup.find_all(["h2", "h3"]):
@@ -759,6 +860,15 @@ def parse_sections_and_charts(
                     style_text,
                     parsed_svg_ids,
                 )
+            elif block.name == "img" or block.find("img"):
+                add_embedded_png_chart_item(
+                    charts,
+                    block,
+                    title,
+                    following_context(blocks, block_idx),
+                    section.paragraphs + section.bullets,
+                    parsed_img_ids,
+                )
         sections[title] = section
 
     fallback_title = text_of(soup.find("h1")) or text_of(soup.title) or "Chart evidence"
@@ -773,6 +883,18 @@ def parse_sections_and_charts(
             nearby_prior_items(svg),
             style_text,
             parsed_svg_ids,
+        )
+
+    for img in soup.find_all("img"):
+        if id(img) in parsed_img_ids:
+            continue
+        add_embedded_png_chart_item(
+            charts,
+            img,
+            nearest_heading_title(img, fallback_title),
+            nearby_next_context(img),
+            nearby_prior_items(img),
+            parsed_img_ids,
         )
 
     for table in soup.find_all("table"):
@@ -1245,6 +1367,25 @@ def render_svg_chart(chart: ChartItem, out_dir: Path) -> tuple[Path | None, dict
     }
 
 
+def render_embedded_png_chart(chart: ChartItem, out_dir: Path) -> tuple[Path | None, dict[str, Any]]:
+    asset_dir = out_dir / "assets" / "charts"
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    image_path = asset_dir / f"chart_{chart.index:02d}.png"
+    raw = data_uri_png_bytes(chart.image_src)
+    if raw is None:
+        return None, {"error": "chart image source was not a base64 PNG data URI"}
+    try:
+        with Image.open(BytesIO(raw)) as image:
+            image = image.convert("RGBA")
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            background.paste(image, mask=image.getchannel("A"))
+            chart.width_px, chart.height_px = background.size
+            background.save(image_path, format="PNG", optimize=True)
+    except Exception as exc:
+        return None, {"error": str(exc)[:500]}
+    return image_path, {"renderer": "embedded_png_data_uri"}
+
+
 def image_is_nonblank(path: Path) -> tuple[bool, dict[str, Any]]:
     with Image.open(path).convert("RGB") as image:
         extrema = image.getextrema()
@@ -1265,7 +1406,10 @@ def image_is_nonblank(path: Path) -> tuple[bool, dict[str, Any]]:
 
 def render_charts(report: Report, out_dir: Path, preflight: Preflight) -> None:
     for chart in report.charts:
-        path, details = render_svg_chart(chart, out_dir)
+        if chart.image_src:
+            path, details = render_embedded_png_chart(chart, out_dir)
+        else:
+            path, details = render_svg_chart(chart, out_dir)
         if path is None:
             preflight.add(
                 f"chart_render:{chart.index}",
@@ -2259,6 +2403,7 @@ def build_manifest(report: Report) -> dict[str, Any]:
                 "title": chart.title,
                 "takeaway": chart.takeaway,
                 "caveat": chart.caveat,
+                "source_kind": "embedded_png" if chart.image_src else "svg",
                 "image_path": chart.image_path,
                 "width_px": chart.width_px,
                 "height_px": chart.height_px,

@@ -1,6 +1,6 @@
 ---
 name: ideate
-description: "Generate image-based visual alternatives, remixes, or concept directions after Product Design get-context has confirmed the design brief. Use when the user asks for design variants, visual exploration, remixes, or image-generated approaches from provided context."
+description: "Generate image-based alternatives, remixes, or new design directions from a Product Design brief. Use when the user asks for design variants, visual exploration, remixes, or image-generated approaches from provided context."
 ---
 
 # Ideate
@@ -24,7 +24,7 @@ Do not inspect every saved reference. Inspect only what the current task needs.
 
 ## Workflow
 
-Do not generate images until `$get-context` has played back and confirmed the design brief for this exact request. If this skill was invoked directly and the current thread does not already contain that confirmed brief, route to [$get-context](../get-context/SKILL.md) first.
+Do not generate images until `$get-context` has satisfied the minimum required design brief.
 
 Before generating images:
 
@@ -33,7 +33,7 @@ Before generating images:
 - Identify the target: component, screen, feature/workflow, or broad product idea.
 - Identify the intended user, product surface, and goal.
 - Preserve hard constraints from the user.
-- Run `get-context` if the brief has not already been played back and confirmed.
+- Run `get-context` if the minimum required design brief isn't satisfied.
 
 2. Resolve context.
 
@@ -73,29 +73,29 @@ Before generating images:
 - Name the gap clearly and ask whether to troubleshoot access or continue without that source.
 - Do not generate images while silently ignoring a named reference.
 
-7. Ask only if context is too thin.
+7. Attach images and mocks provided by the user to the Image Gen call along with your design brief.
 
-- Ask one targeted question only when available context is insufficient to generate useful directions.
-- Prefer asking about style direction, target audience, or the reference surface.
-
-8. Attach images and mocks provided by the user to the Image Gen call along with your design brief.
-
-9. Generate 3 independent options that have distinct information hierarchy, layout strategy, interaction model, or product framing.
+8. Generate 3 independent options that have distinct information hierarchy, layout strategy, interaction model, or product framing.
 
 Rules you must follow:
 
 - Use the Image Gen prompt below.
 - Use the built-in Image Gen tool.
 - Generate exactly three independent images unless the user overrides the count.
-- Generate options in parallel when possible.
+- Launch each Image Gen call independently. Do not batch Image Gen calls with `Promise.all`, collect them into an ordered array, or replay them in request order.
 - Each option must be its own Image Gen result. Do not put multiple ideas in one image.
+- Give each direction a distinct, descriptive name before generation, but do not call it `option 1`, `option 2`, or `option 3` and do not put planned numeric labels in Image Gen prompts. Parallel results can arrive in a different order from the requests.
+- Number options only after the Image Gen results are present in the thread. The only authoritative option order is the order those generated-image results are displayed in the current thread. Ignore the planned concept order, original request chain, prompt submission order, `Promise.all` result order, batch order, array indexes, retry order, and assumed completion order.
+- After all results return, bind each visible option number to the result in that displayed order. Do not name or describe the options in the final selection message.
 - Attach provided screenshots, files, app captures, Figma references, and visual source material as moodboard inspiration when available.
 - Attach existing product screenshots, similar flows, Storybook captures, design tokens, and component references as grounding material when available.
+- When mock data includes dates or time-sensitive information, resolve the exact current date and include it in every Image Gen prompt. Derive visible dates from that anchor; preserve dates required by the user or source design.
 - If a screenshot, image, or visual file is available, attach the actual image to the Image Gen call. Do not rely on text descriptions of it.
 - Only claim a visual reference was attached if the Image Gen call actually received that image or a readable local image path.
 - If you cannot attach the image, say that clearly and ask whether to continue with text-only direction.
 - Preserve hard constraints from the brief in every image.
 - After generating options, stop for the user's selection before any build work begins.
+- When the user later selects option `N`, resolve it against the Nth displayed generated-image result from the most recent ideation set, not the original planned concept order. If the exact displayed result cannot be resolved, do not build from a guess; ask the user to name the concept or reattach/select the image.
 - The selected option is the visual target for `$image-to-code`.
 
 ## Feedback Loop
@@ -108,18 +108,18 @@ If the user likes parts of more than one option, combine those choices into a ne
 
 ## Image Gen Prompt
 
-Adapt this prompt to the confirmed design brief, attach any available image references, and send it to Image Gen:
+Adapt this prompt to the current design brief, attach any available image references, and send it to Image Gen:
 
 ```text
 Create realistic, production-quality UI designs with clear hierarchy, strong typography, intentional imagery, and purposeful spacing.
 
-Keep the design simple. Avoid busy interfaces. Every section should have a clear purpose, and every element should earn its place.
-
-Prioritize clarity, whitespace, and usability over decorative complexity.
+Design a focused primary screen, not a feature inventory. The product may support many workflows, but this frame should show the hero use case, one clear primary action, and only one or two supporting actions or content areas. Do not add cards, panels, tabs, badges, metrics, filters, or navigation items merely to advertise every feature. Let the rest of the product exist off-screen. Prefer strong hierarchy and generous whitespace; if the screen feels crammed, remove UI.
 
 ### Target Dimensions
 
 Pick the dimensions that best match the user's request and any provided visual reference.
+
+Default to a desktop web-app frame unless the user or reference clearly calls for mobile, tablet, or another format.
 
  - Mobile app: `390 x 844`
  - Tablet app: `834 x 1194`
@@ -127,6 +127,8 @@ Pick the dimensions that best match the user's request and any provided visual r
  - Landing or marketing page: `1440` wide and scrollable
  - Modal, panel, widget, or component: natural container size
  - Provided screenshot, Figma frame, mockup, or reference image: match its dimensions and aspect ratio when the user wants to continue from that visual
+
+Use a natural viewport ratio for the intended surface. Never stretch, squash, or warp the generated screen, imagery, typography, or UI elements to fill the canvas. If the composition does not fit naturally, recompose or simplify the layout instead.
 
 Avoid crowding. Make the design fit the chosen dimensions cleanly, with realistic spacing, readable type, and no clipped content.
 
@@ -156,24 +158,34 @@ Don'ts:
  - Do not add browser or device chrome around the mockup.
  - Do not put multiple ideas into a single image generation.
  - Vary each idea as much as possible while adhering to the constraints given entirely.
+
+### Data Freshness
+
+When the design includes dates or time-sensitive mock data, use the supplied current date as the anchor. Weekly views must show the real containing week with correct weekday/date pairs. Feeds, charts, notifications, and recent activity must use plausible chronological dates relative to today. Mark today when useful. Preserve dates required by the brief or source design.
 ```
 
 ## Output
 
-After generation, provide
+Wait until all Image Gen calls have returned before sending the final message that asks the user to choose.
 
-1. A short, memorable name for each concept that distills its choices down.
+Do not send the final selection message until every requested generated image is visible exactly once in the main chat.
 
-2. A short closing question that asks whether the user wants to keep exploring or choose one direction to continue.
+If fewer Image Gen outputs are visible than requested, retry the missing generation. Do not send the selection message.
 
-If the image tool already displayed the generated images in the thread, do not embed the same images again in the final message.
+Number the returned Image Gen outputs in the order they appear in the conversation context:
 
-If the image tool did not display the generated images, include one image per option.
+- First Image Gen output = Option 1
+- Second Image Gen output = Option 2
+- Third Image Gen output = Option 3
 
-Do not show the same generated image twice.
+Ignore the planned concept order, original request chain, request order, `Promise.all` result order, batch order, array indexes, retry order, and tool submission order.
 
-Example closing question:
+Do not name or describe the options. For the default three images, send only:
 
-> Want to explore more directions, or should I build one of these? If one works, tell me 1, 2, or 3.
+`Which option should I build: 1, 2, or 3? Or tell me what you'd like to refine or personalize first.`
 
-Done means the requested number of independent images was generated and the user has been asked to select one.
+Adjust the numbers only if the user requested a different count.
+
+If the user chooses a number, acknowledge the chosen option before routing to `$image-to-code`, for example: `Building option 2!` Do not ask for confirmation when the mapping is clear.
+
+Done means the requested number of independent images have been generated and the user has been asked to select one.

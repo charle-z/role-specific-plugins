@@ -10,12 +10,6 @@ HTML mode. This skill does not convert a live MCP app report directly.
 
 The expected path is HTML -> DOCX -> Drive upload. It is acceptable for Drive to host the upload as a DOCX-backed viewer file rather than a native Google Docs MIME type. Do not use the old Google Docs batch-update request path.
 
-## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
-
 ## Workflow
 
 1. Resolve the HTML report.
@@ -67,7 +61,7 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
 
 6. Hand off the link.
 
-   Return the Drive/Docs URL, local DOCX path, source HTML path, and validation performed. Connector success alone is not enough; the handoff is complete only after the uploaded file and local DOCX structure have been checked against the source report.
+   Return the Drive/Docs URL and, when useful, the local DOCX path or source HTML path. Connector success alone is not enough; the handoff is complete only after the uploaded file and local DOCX structure have been checked against the source report. Keep routine check and preflight details in support artifacts. Do not list internal checks in the user-facing handoff unless a check failed, was unavailable, or produced a user-relevant caveat.
 
 ## Standards
 
@@ -79,7 +73,7 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
   bullets/numbered lists, links, inline images, paragraph shading, table cell shading, and text styles.
 - Keep the report text column readable. Tables, charts, rendered table grids,
   screenshots, and visual blocks must not exceed the DOCX page text width.
-- Preserve charts as inline PNG images from the source visual, aligned to the same left edge as text and tables. A chart with missing bars, missing legend swatches, or all-black/all-white marks fails validation even if the DOCX contains an image object.
+- Preserve charts as inline images rendered from the source visual or its same-data SVG fallback, aligned to the same left edge as text and tables. A chart with missing bars, missing legend swatches, or all-black/all-white marks fails validation even if the DOCX contains an image object.
 - Preserve multi-column report blocks. A two-column grid made only of titled mini-tables can remain a two-column rendered image capped to the text width;
   mixed two-column blocks with narrative text, pills, callouts, or non-table panels should preserve that content natively instead of dropping it.
 - Do not expose customer-level details or sensitive links that were intentionally omitted from a sanitized report.

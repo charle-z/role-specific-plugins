@@ -1,16 +1,16 @@
 ---
 name: audit
-description: "Audit or critique a product flow, journey, workflow, funnel, onboarding path, checkout path, settings path, screen, or multi-step product experience by capturing screenshots first, placing them in Figma or a local folder, then reporting UX, design, and accessibility findings from that evidence. Use when the user asks to audit, critique, review, inspect, assess, or evaluate a product experience."
+description: "Audit or critique a product flow, journey, workflow, funnel, onboarding path, checkout path, settings path, screen, or multi-step product experience by capturing screenshots first, then reporting UX, design, and accessibility findings inline from that evidence. Use Figma only when the user explicitly asks for a board. Use when the user asks to audit, review, critique, inspect, assess, analyze, evaluate, or give feedback on a product experience."
 ---
 
 # Audit
 
-Use this skill when the user wants to audit or critique a product flow, journey, funnel, onboarding path, checkout path, settings path, screen, or other product experience.
+Use this skill when the user wants to audit, review, critique, inspect, assess, analyze, evaluate, or give feedback on a product flow, journey, funnel, onboarding path, checkout path, settings path, screen, or other product experience.
 
 The output is not a loose opinion. The output is:
 
 - Screenshots of the flow
-- Those screenshots placed in the chosen destination
+- Those screenshots rendered inline in the report
 - A numbered step list
 - UX and design findings tied to steps or screenshots
 - Accessibility risks tied to steps or screenshots
@@ -35,22 +35,21 @@ Before auditing:
 
 1. Identify the product or surface.
 2. Identify the flow or task.
-3. Identify the destination.
-4. Choose the capture tool.
-5. Capture the flow.
-6. Save, inspect, place, and annotate each screenshot.
+3. Choose the capture tool.
+4. Capture the flow.
+5. Save and inspect each screenshot.
+6. Return the audit inline with the accepted screenshots.
 
-Destination rules:
+Output rules:
 
-- If the user names Figma, use Figma.
-- If the user names a local folder, use that folder.
-- If the destination is missing, ask one question: "Should I put this in Figma or a local folder?"
+- Default to a concise inline report with screenshots rendered in the chat.
+- Saving screenshots and notes in the workspace is an internal implementation detail. Do not ask the user to choose a local folder.
+- If the user explicitly asks for Figma, create the Figma audit board in addition to the inline report.
+- After the inline report, ask once: `Want me to plot this out in Figma with the screenshots and notes?`
 
 Capture rules:
 
-- Use the Codex in-app Browser first.
-- If Browser cannot access, control, or screenshot the target, use Chrome [Internal].
-- If Browser and Chrome cannot complete the capture, ask before using Playwright as the fallback.
+- Follow the Browser Choice rule in [$index](../index/SKILL.md#browser-choice).
 - If none of those can capture valid screenshots or control the flow, stop and report the blocker.
 
 Browser capture order:
@@ -71,13 +70,13 @@ Figma rules:
 - Figma is not done until the screenshots are visibly placed in the Figma output.
 - After placing screenshots in Figma, render or inspect the board and confirm every flow step has the correct screenshot visible in the correct card.
 - If an image is missing, misplaced, blank, or only uploaded as an unused asset, fix it before handoff.
-- If Figma tools cannot create files or place images, save the audit locally and explain the missing Figma capability.
+- If Figma tools cannot create files or place images, return the inline audit and explain the missing Figma capability.
 
 Evidence rules:
 
 - Use only evidence captured in the current audit run.
 - Do not use memory, prior chats, old traces, cached screenshots, or prior generated artifacts as audit evidence unless the user explicitly provides them.
-- Do not audit until the product, flow, destination, and capture tool are known.
+- Do not audit until the product, flow, and capture tool are known.
 - Do not claim full accessibility compliance from screenshots alone.
 
 ## Capture And Audit The Flow
@@ -109,15 +108,16 @@ For every step:
 9. In the notes, report strengths, UX issues, accessibility risks, and any limits that made the step difficult to audit.
 10. Save accepted screenshots with numbered names, such as `01-start.png`, `02-form-filled.png`, and `03-confirmation.png`.
 11. Inspect the saved screenshot file before upload or handoff.
-12. Add each accepted screenshot to the chosen destination immediately.
-13. Add the notes for that step to the chosen destination immediately.
+12. Keep each accepted screenshot and its notes together for the final inline report.
+13. If the user explicitly requested Figma, add each accepted screenshot and its notes to the board immediately.
 
-If the destination is a local folder:
+Default inline report:
 
-- Save screenshots in that folder.
-- Save the notes in a file that can be shared at the end.
+- Render accepted screenshots in flow order.
+- Keep the report pithy: overall verdict, numbered steps, highest-impact changes, and evidence limits.
+- Tie every finding to the screenshot or step that supports it.
 
-If the destination is Figma:
+If the user explicitly requested Figma:
 
 - Place screenshots in order, left to right on the same row, with 200px between each one. Go to a new row every 15 screenshots, and separate those rows by 600px.
 - Underneath the screenshot, add text with the Step number and its name, and notes.
@@ -128,8 +128,8 @@ Acceptance checks:
 
 - Every important step in the requested flow has a valid screenshot or a named blocker.
 - Screenshots are saved in order.
-- Screenshots are placed in the chosen destination as they are captured.
-- Notes are placed in the chosen destination as they are written.
+- Screenshots are rendered inline in the final report.
+- When Figma was explicitly requested, screenshots and notes are placed in the board as they are captured.
 - Every note points to the screenshot or step it describes.
 - Notes explain strengths, UX issues, accessibility risks, and evidence limits when those apply.
 - Accessibility risks say what can be seen from screenshots and what still needs testing.
@@ -140,9 +140,10 @@ Blockers:
 - The flow cannot be completed.
 - A required step cannot be screenshotted.
 - The source changes in a way that makes the flow unclear.
-- Screenshots cannot be saved or placed in the destination.
-- Notes cannot be written or placed in the destination.
+- Screenshots cannot be saved or rendered inline.
+- Notes cannot be written.
 - The requested claim would require evidence that screenshots cannot provide.
+- Do not claim an audit if the actual flow could not be accessed and captured. Help Center pages, web searches, and other indirect evidence are research, not an audit.
 
 ## Final Response
 

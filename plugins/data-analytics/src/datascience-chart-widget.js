@@ -420,38 +420,13 @@ document.body.dataset.displayMode = mode;
 applySplitLayout();
 const button = document.getElementById("display-mode-button");
 if (!button) return;
-button.hidden = !hostSupportsDisplayMode();
-const label = isDetailDisplayMode(mode) ? "Done" : "Edit";
-button.title = isDetailDisplayMode(mode) ? "Return chart inline" : "Edit chart";
-button.setAttribute("aria-label", isDetailDisplayMode(mode) ? "Return chart inline" : "Edit chart");
-const labelElement = document.createElement("span");
-labelElement.className = "display-mode-button-label";
-labelElement.textContent = label;
-if (isDetailDisplayMode(mode)) {
-button.replaceChildren(labelElement);
-} else {
-button.replaceChildren(labelElement, exploreIcon());
-}
+const showInlineExpand = mode === "inline" && hostSupportsDisplayMode();
+button.hidden = !showInlineExpand;
+button.title = "Expand chart";
+button.setAttribute("aria-label", "Expand chart");
 const modalCloseButton = document.getElementById("modal-title-close-button");
 if (modalCloseButton) modalCloseButton.hidden = mode !== "modal";
 if (changed) render();
-}
-
-function exploreIcon() {
-const icon = document.createElement("span");
-icon.className = "display-mode-button-icon";
-const svg = svgEl("svg", {
-viewBox: "0 0 16 16",
-"aria-hidden": "true",
-focusable: "false",
-});
-const path = svgEl("path", {
-d: "M11.949 3.47949C12.0997 3.46465 12.2553 3.51279 12.3709 3.62793C12.4863 3.74328 12.5338 3.89898 12.5193 4.0498C12.5206 4.06633 12.5251 4.08275 12.5252 4.09961V10.667C12.525 10.9565 12.2902 11.191 12.0007 11.1914C11.7109 11.1914 11.4755 10.9568 11.4754 10.667V5.2666L4.37184 12.376C4.16684 12.5807 3.83365 12.5808 3.62867 12.376C3.42385 12.1711 3.42396 11.8388 3.62867 11.6338L10.7332 4.52539H5.33375C5.0438 4.52539 4.80836 4.28995 4.80836 4C4.80836 3.71005 5.0438 3.47461 5.33375 3.47461H11.9002C11.9167 3.47462 11.9328 3.47822 11.949 3.47949Z",
-fill: "currentColor",
-});
-svg.appendChild(path);
-icon.appendChild(svg);
-return icon;
 }
 
 function setViewMode(mode) {
@@ -892,8 +867,27 @@ const presentation = specPresentation(dataset);
 return presentation[key] != null ? presentation[key] : valueFor(dataset, key, fallback);
 }
 
+function selectedMeasureColumn(dataset) {
+return asArray(resultTableFor(dataset)?.columns).find(
+(column) => column && column.key === chartConfig.yField,
+);
+}
+
+function columnValueFormat(column) {
+const format = text(column?.format);
+if (["compact", "number", "percent", "currency"].includes(format)) return format;
+const type = text(column?.type);
+if (["number", "percent", "currency"].includes(type)) return type;
+return null;
+}
+
+function valueFormatFor(dataset, existing = chartSpecFor(dataset)) {
+return existing.valueFormat || columnValueFormat(selectedMeasureColumn(dataset));
+}
+
 function currentWidgetSpec() {
 const dataset = activeDataset();
+const valueFormat = valueFormatFor(dataset);
 return {
 version: "1",
 visualization_type: activeVisualizationType,
@@ -907,6 +901,8 @@ y: {
 aggregate: chartConfig.yAggregation,
 field: chartConfig.yField,
 type: "quantitative",
+...(valueFormat ? { format: valueFormat } : {}),
+...(unitFor(dataset) ? { unit: unitFor(dataset) } : {}),
 },
 ...(chartConfig.colorField ? { color: { field: chartConfig.colorField, type: "nominal" } } : {}),
 ...(chartConfig.lineStyleField ? { lineStyle: { field: chartConfig.lineStyleField, type: "nominal" } } : {}),
@@ -958,6 +954,7 @@ return output;
 }
 
 function projectedRenderColumns(rows, dataset) {
+const valueFormat = valueFormatFor(dataset);
 const columns = [
 {
 key: "x",
@@ -968,6 +965,7 @@ type: fieldLooksDateLike(dataset, chartConfig.xField) ? "date" : "text",
 key: "y",
 label: fieldLabel(dataset, chartConfig.yField, "Value"),
 type: "number",
+...(valueFormat ? { format: valueFormat } : {}),
 unit: unitFor(dataset),
 },
 ];
@@ -992,6 +990,7 @@ const sourceSettings = specSettings(dataset);
 const useColor = projectedRowsUseColorEncoding(rows);
 const xAxisTitle = specValue(dataset, "x_axis_title", existing.xAxisTitle);
 const yAxisTitle = specValue(dataset, "y_axis_title", existing.yAxisTitle);
+const valueFormat = valueFormatFor(dataset, existing);
 return {
 id: text(existing.id || valueFor(dataset, "id", "default")) || "default",
 title: text(valueFor(dataset, "title", payload.title || "Data Analytics chart")),
@@ -1010,6 +1009,7 @@ aggregate: "none",
 field: "y",
 label: fieldLabel(dataset, chartConfig.yField, "Value"),
 type: "quantitative",
+...(valueFormat ? { format: valueFormat } : {}),
 unit: unitFor(dataset),
 },
 ...(useColor ? { color: { field: "series", label: "Series", type: "nominal" } } : {}),
@@ -1026,7 +1026,7 @@ unit: unitFor(dataset),
 ...(xAxisTitle != null ? { xAxisTitle } : {}),
 ...(yAxisTitle != null ? { yAxisTitle } : {}),
 unit: unitFor(dataset),
-valueFormat: existing.valueFormat,
+valueFormat,
 settings: {
 orientation: chartSettings.barOrientation,
 groupMode: chartSettings.barGroupMode,
@@ -1121,9 +1121,7 @@ widget.dataset.barGroupMode = chartSettings.barGroupMode;
 }
 
 function unitFor(dataset) {
-const selectedMeasure = asArray(resultTableFor(dataset)?.columns).find(
-(column) => column && column.key === chartConfig.yField,
-);
+const selectedMeasure = selectedMeasureColumn(dataset);
 if (selectedMeasure?.unit != null && text(selectedMeasure.unit).trim()) {
 return text(selectedMeasure.unit).trim();
 }

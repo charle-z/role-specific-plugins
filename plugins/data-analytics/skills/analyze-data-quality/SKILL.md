@@ -1,18 +1,18 @@
 ---
 name: analyze-data-quality
-description: "Assess whether tables, query results, files, or dataframes are trustworthy enough for analysis, modeling, dashboards, experiments, or pipelines. Use for grain, freshness, nulls, duplicates, schema drift, broken joins, referential integrity, distribution shifts, leakage, backfills, source mismatches, automated quality checks, and data-quality regressions."
+description: "Assess whether structured data, query results, dashboards, or analytical evidence are trustworthy enough to use. Use when the task is to check data quality, reconcile conflicting sources or metric definitions, or decide whether evidence is safe to cite."
 ---
+
+## Related Skills
+
+Use $design-kpis when the work is to define or redesign a KPI framework, metric definition, guardrail, or target rather than checking whether existing data is trustworthy.
+
+Use $validate-data when the work is to QA an analysis, chart, report, or recommendation rather than investigate the underlying data.
 
 # Analyze Data Quality
 
 Assess whether a dataset is trustworthy enough for analysis, modeling,
 dashboards, experiments, or downstream pipelines. Start with the intended use and grain, run the highest-value checks for the data shape, and report concrete evidence, analytical risk, likely causes, and the smallest useful remediation or automated test.
-
-## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
 
 ## Workflow
 
@@ -125,6 +125,8 @@ Do not dump raw profiling output without interpretation. Tie each finding to an 
 - Suggest automated tests only when the expected rule is stable, important, and maintainable.
 
 ### Output Standards
+
+For stakeholder-facing data-quality work, pass the completed findings to $build-report by default so the runtime produces an MCP app or HTML report. Do not stop at profiling output, a notebook, or chat-only findings unless the user explicitly requested a quick inline answer or another primary artifact. The structure below defines the report content.
 
 Structure the response with:
 

@@ -1,31 +1,37 @@
 ---
 name: zoominfo
-description: ZoomInfo connector guide for Sales workflows or explicit ZoomInfo requests involving company search, contact search, enrichment, intent signals, similar-account discovery, contact recommendations, and company or contact research.
+description: Use only when a focused Sales workflow has selected a present and connected ZoomInfo connector, or the user explicitly asks for ZoomInfo company search, contact search, enrichment, intent, similarity, recommendations, or research. Do not use when another enrichment source is selected.
 ---
 
 # ZoomInfo User Guide
 
-Use this as the ZoomInfo-specific guide whenever the user or workflow is using ZoomInfo for market intelligence, data enrichment, prospect discovery, company/contact research, intent signals, lookalikes, or recommendation workflows. Keep the surrounding Sales workflow authoritative for the seller task itself; this guide adds ZoomInfo-specific routing, identifier resolution, query hygiene, enrichment sequencing, and result-quality guardrails.
+Use ZoomInfo for focused Sales Intelligence work after the parent Sales workflow selects it. Keep the parent workflow authoritative for the seller's task; this guide owns ZoomInfo-specific lookup, search, identity, enrichment, credit, and result-quality rules.
 
-Do not use this guide when the workflow uses another enrichment provider or no ZoomInfo connector.
+## Common Skill Instructions
 
-## Skill Configuration
+MANDATORY: If not already in context, read and adhere closely to plugins/sales/skills/index/SKILL.md## Cross-Skill Best Practices.
 
-### User Context
+## ZoomInfo Operation Ranking
 
-Mandatory pre-answer gate: Invoke `sales:user-context` in preflight mode by loading `[$sales:user-context](../user-context/SKILL.md)` and running its preflight script before answering, searching connectors, retrieving evidence, or drafting output. Do not look for a callable MCP tool named `sales:user-context`. Use the returned `sales_preflight` envelope as authoritative for saved context, source-category mapping, final obligations, and conditional guidance. Do not read or reinterpret raw Sales state files unless preflight fails, local shell access is unavailable, or the user explicitly asks for raw state inspection.
+1. Explicit user request, named company or person, domain, email, ZoomInfo ID, or stated constraint
+2. The narrowest ZoomInfo lane needed by the active Sales workflow
+3. Canonical company or contact identity resolved from strong identifiers
+4. Search and shortlist before enrichment, research, similarity, or recommendations
+5. The smallest credit-consuming step that materially improves the answer
+6. A result that clearly separates qualified matches, near matches, and gaps
 
-Use returned user context only as a relevance hint for ICP, territory, persona, terminology, and preferred output style. Do not let saved context replace ZoomInfo identifiers, supported lookup values, connector-returned facts, or explicit user constraints.
+Do not silently relax hard filters, guess identities, or present ZoomInfo as CRM ground truth.
 
-### Audience And Language
+## Key Dependency Categories
 
-Write for Sales users, not plugin maintainers. This applies to final answers, setup/status readbacks, failure explanations, tool preambles, and mid-turn progress narration.
+These are particularly important for this workflow; use your best judgment to potentially include other data sources to improve quality.
 
-Translate implementation work into practical Sales impact: what Sales is checking, setting up, saving, or preparing, and why it matters. Avoid implementation terms such as preflight, state file, cache, raw connector id, heartbeat, targetThreadId, schema, API, runtime, metadata, and provider taxonomy unless the user asks for debugging details.
+- ~~Sales Intelligence, specifically a present and connected ZoomInfo connector, for ZoomInfo search, enrichment, intent, similarity, recommendations, and research
+- ~~CRM for account ownership, customer status, opportunity facts, and forecast truth
+- The parent Sales workflow for Calendar, Meeting Transcripts, Email, Internal Messaging, or Knowledge & Files context
+- User-provided names, domains, emails, IDs, ICP constraints, and business context when connector access or identity is incomplete
 
-### Source Links
-
-When referencing sources inline, prefer clickable Markdown links over plain bracket labels whenever the source exposes a useful URL. Use the source title, record name, channel/thread, or meeting/date as the link text, for example a clickable Markdown link whose visible text is `Meeting notes: May 19` or `Slack thread: May 15-21`. Use plain text labels only when no useful URL or stable connector-visible link is available, and say `(no useful link available)` when that absence matters.
+If ZoomInfo is missing, unavailable, ambiguous, or limited by the exposed connector surface, state the limitation instead of substituting unsupported claims.
 
 ## Connector Boundary
 
@@ -44,7 +50,7 @@ Do not blur these lanes:
 - Use `account_research` or `contact_research` when the user wants a narrative brief, meeting prep, or broader situational readout.
 - Use similarity or recommendation actions for "more like this", account expansion, or stakeholder discovery, not as a substitute for precise search filters.
 
-Do not present ZoomInfo as CRM ground truth. If a research response includes relationship or engagement context, label it as connector-surfaced context unless it is independently grounded by the surrounding workflow.
+Do not present ZoomInfo as CRM ground truth. If a research response includes relationship or engagement context, label it as connector-surfaced context unless it is independently grounded by ~~CRM or the surrounding workflow.
 
 ## Default Resolution Pattern
 
@@ -185,6 +191,7 @@ Do not add friction for a small, clearly requested enrichment task. Do be explic
 ## Output Rules
 
 - Prefer compact tables for candidate lists, enrichment outputs, similar-company lists, and contact recommendations.
+- Prefer clickable connector-returned links when available; never construct guessed links from opaque IDs.
 - Separate:
   - `Qualified matches`
   - `Near matches` when useful
@@ -193,3 +200,27 @@ Do not add friction for a small, clearly requested enrichment task. Do be explic
 - Do not guess emails, phone numbers, exact intent, or confidence levels not surfaced by the connector.
 - When the answer depends on connector-reported fields or recommendation metadata, say so directly.
 - If the user's request asked for a ranked list, rank by explicit connector signal or stated criteria, not by invisible model preference.
+
+#### Output Format
+
+    # [ZoomInfo Search / Enrichment / Research]
+
+    ## Qualified Matches
+
+    | Company / Person | Key Match Evidence | Useful Detail | Source |
+    | --- | --- | --- | --- |
+    | [Result] | [Hard filters satisfied] | [Returned field] | [Link or connector source] |
+
+    ## Near Matches
+
+    - [Result + exact mismatch, when useful]
+
+    ## Gaps / Connector Limitations
+
+    - [Missing field, unsupported filter, bounded coverage, ambiguity, or credit-aware next step]
+
+    ---
+
+    {Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+    {Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}

@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "datascienceWidgets": {
-      "title": "Data Analytics Widgets",
+    "dataAnalyticsWidgets": {
+      "title": "Data Analytics",
       "description": "Render Data Analytics charts, tables, dashboards, and report artifacts.",
       "icons": [
         {

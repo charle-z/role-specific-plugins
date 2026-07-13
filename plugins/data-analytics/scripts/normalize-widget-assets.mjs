@@ -10,6 +10,7 @@ const widgetAssets = [
   "datascience-artifact-widget.html",
   "datascience-chart-widget.html",
   "datascience-table-widget.html",
+  "html-report-runtime.html",
 ];
 
 for (const asset of widgetAssets) {
@@ -50,7 +51,9 @@ function sanitizePublicCopy(html) {
 }
 
 function localDevRedirect(asset) {
-  const title = asset.includes("artifact")
+  const title = asset.includes("html-report")
+    ? "Data Analytics HTML report runtime"
+    : asset.includes("artifact")
     ? "Data Analytics artifact app"
     : asset.includes("table")
       ? "Data Analytics table widget"

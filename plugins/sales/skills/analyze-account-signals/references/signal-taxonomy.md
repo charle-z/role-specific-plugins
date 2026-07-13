@@ -89,6 +89,7 @@ Each signal must store:
 - `recency`
 - `confidence`
 - `evidence`
+- `citation`
 - `recommended_next_step`
 
 ## Confidence guidance
@@ -99,7 +100,7 @@ Use a simple three-level confidence scale:
 - `low`: weak, stale, or contradictory evidence; use mainly to frame uncertainty
 
 Rules:
-- recent `crm` activity or corroborated communication evidence can support `high` confidence on recent account-state changes
+- recent ~~CRM activity or corroborated communication evidence can support `high` confidence on recent account-state changes
 - multi-source corroboration raises confidence
 - unsupported interpretation must not be labeled `high`
 - conflicting evidence should lower confidence and usually produce an `evidence_gap` signal

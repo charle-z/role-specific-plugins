@@ -1,285 +1,167 @@
 ---
 name: get-rep-call-feedback
-description: Compare one rep’s call history against peer examples to extract repeatable best practices and produce evidence-backed coaching feedback.
+description: Use when the user wants evidence-backed coaching for one rep's calls, especially by comparing the rep with peer examples to identify repeatable best practices, specific upgrade moments, and practical next-call language.
 ---
 
-# get-rep-call-feedback
+# Get Rep Call Feedback
 
-## Goal
-Produce high-signal coaching feedback for a target rep by benchmarking their recent `meeting_notes` calls against peer reps' calls, extracting **repeatable best practices**, and translating them into **very specific moments** where the target rep can apply those patterns in future calls.
 
-This skill optimizes for:
-- **Great examples from peers** (what “good” sounds like in practice)
-- **Specific coaching moments** for the target rep (exact spots to apply those moves)
-- **Evidence-led** excerpts and observable patterns (no invented content)
+## Context-Gathering Intake
 
-## Skill Configuration
+Whenever this skill asks for context, strongly prefer using the `answers-ask-user-input` skill and the `ask_user_input` tool over other tools such as `request_user_input`; otherwise ask directly in the conversation.
 
-### User Context
+Turn grounded call evidence into practical coaching for one rep. This skill compares the target rep with relevant peer examples, extracts repeatable moves, and maps them to exact moments the target rep can improve. It owns the coaching readout only; it does not create scorecards, send feedback, post messages, or save coaching artifacts.
 
-Mandatory pre-answer gate:
+## Common Skill Instructions
 
-- Invoke `sales:user-context` in preflight mode by loading `[$sales:user-context](../user-context/SKILL.md)` and running its preflight script before searching connectors, retrieving evidence, or drafting output. Do not look for a callable MCP tool named `sales:user-context`.
-- Use the returned `sales_preflight` envelope as authoritative for saved context, source-category mapping, final obligations, and conditional guidance.
-- Apply hard `final_obligations` unless the response is clarification-only. If an obligation is an onboarding reminder and the output also needs a skill-owned final continuation, satisfy both in one final natural continuation instead of rendering a standalone onboarding reminder plus a second CTA.
-- Apply `context_gap_note` only when missing setup or inaccessible sources materially limits the output.
+MANDATORY: If not already in context, read and adhere closely to `plugins/sales/skills/index/SKILL.md## Cross-Skill Best Practices`.
 
-### Audience And Language
+## Key Dependency Categories
 
-Write for Sales users, not plugin maintainers. This applies to final answers, setup/status readbacks, failure explanations, tool preambles, and mid-turn progress narration.
+These categories are particularly important for this workflow; use other sources only when they materially improve call selection or coaching context.
 
-Translate implementation work into practical Sales impact: what Sales is checking, setting up, saving, or preparing, and why it matters. Avoid implementation terms such as preflight, state file, cache, raw connector id, heartbeat, targetThreadId, schema, API, runtime, metadata, and provider taxonomy unless the user asks for debugging details.
+- [Blocking] ~~Meeting Transcripts for target and peer call search, summaries, transcript moments, speaker context, dates, companies, and clickable call links. It blocks the default live-source feedback path; explicit transcript-like call evidence already in context satisfies the need.
+- ~~Knowledge & Files for user-provided or exported transcripts, call notes, manager examples, and prior coaching context
 
-### Source Resolution
+Transcript-like call evidence is required for behavioral claims. Manager notes, CRM outcomes, and generic impressions can shape focus, but cannot substitute for observed call evidence. If live transcripts are unavailable, continue from sufficiently detailed pasted or exported material and label the coverage limit.
 
-Use `context.sources` from the `sales_preflight` envelope to resolve each attempted semantic source category to available apps, connectors, and helper skills. Defer connector fallback, source preferences, durable source rules, and helper-skill loading mechanics to `sales:user-context`. Do not prompt about categories this skill does not attempt.
+## Reference Loading
 
-### Required Inputs
+`SKILL.md` owns the normal benchmarked-coaching loop and output format. Load references only when their extra detail matters:
 
-This skill needs enough user-provided, connector-visible, or explicitly inferable context to identify a target rep and a call set, transcripts, notes, or coaching theme.
+- Use [references/call-transcripts-connector-playbook.md](references/call-transcripts-connector-playbook.md) when date-window conversion, attendee-filter limitations, threshold fallback, or sparse-result recovery needs more detail.
+- Use [references/request-schema.yaml](references/request-schema.yaml) for structured input normalization.
+- Use [references/source-priority.md](references/source-priority.md) when evidence quality is mixed.
+- Use [references/output-contract.md](references/output-contract.md) when checking required sections or downstream compatibility.
 
-The skill can still produce limited coaching feedback from pasted transcripts, uploaded/exported call notes, manager-provided examples, or user-linked transcript text when that context is sufficient. Connectors add significant value and reduce manual work, but do not stop solely because connectors are unavailable.
+## Terms
 
-**Inputs:**
+- **MAP:** mutual action plan, a shared customer-and-seller plan with owners, milestones, and dates.
 
-Require:
+## Workflow Guidance
 
-- [required] target rep or clearly supplied target call set
-- [required] call evidence: transcripts, call notes, meeting-note access, exported calls, or pasted transcript-like material
+### 1. Resolve the target and comparison set
 
-Accept when provided:
+- If neither a benchmarked target/comparison set nor a focused-coaching anchor is clear, ask the user via `ask_user_input()`. For a bare invocation such as “give me call feedback,” do not assume a target rep, peer set, or coaching focus; offer: `My calls compared with two relevant peers`, `A named rep compared with named peers`, and `Focused coaching on a supplied call set or theme`.
+- If the user names only “my recent calls” without a peer basis or focused-coaching anchor, offer the same explicit choices before gathering deeper evidence. Do not infer a representative rep, peer set, or feedback mode from a fresh request.
+- Require a target rep or clearly supplied target call set, plus transcript-like call evidence.
+- For benchmarked feedback, prefer user-named peer reps. If peers are omitted, use named top performers only when the user explicitly asks for that comparison; otherwise ask for at least two peers or offer source-derived candidates after a bounded search.
+- Accept an explicit coaching theme, call type, product focus, account, time window, audience, or requested depth when provided. Do not force optional scope.
+- Use product focus only when the user requests it, the dataset mixes motions or products enough to make comparison noisy, or one grounded area is needed to find better exemplars. Choose one area or a small user-specified set from the user's wording or call evidence; never run placeholder-only product searches.
+- If a required target, peer set, or supplied call-set anchor remains ambiguous after the user selects a lane, make at most three narrow source reads, offer up to five concrete candidates, and confirm any inferred anchor before gathering deeper evidence.
+- If the user supplies transcripts, a clear target/peer/window for benchmarked feedback, or a clear target or call set plus a focused-coaching anchor, proceed without a setup detour.
 
-- peer exemplar reps, time window, call type, product focus, coaching theme, manager notes, output audience, and requested depth
+### 2. Build a fair call sample
 
-**Context Rules:**
+- Start with ~~Meeting Transcripts. Search by the rep's exact email or display name and convert relative windows to absolute dates before retrieval.
+- Default to the trailing 30 days for the target and trailing 60 days for peers unless the user supplies a window; use the same user-specified window for both sides unless asked otherwise.
+- Aim for at least 15 target calls and at least 15 peer calls total. Use about 15 per peer only when strict peer-by-peer benchmarking is requested.
+- Keep the target and peer mix comparable by motion, segment, product focus, and topic when those dimensions are visible. Do not compare mostly discovery calls with mostly procurement calls without calling out the mismatch.
+- Search summaries first. Use a few bounded query variations around the rep plus the requested motion or theme; lower thresholds or broaden the window only when it is likely to improve the sample.
+- If the user provides a company or account, include it in the query text and any available structured filter; do not rely on structured filters alone.
+- If targets are not met after a bounded pass, produce a limited feedback memo, state the shortfall, and name the next search that would improve confidence instead of padding the analysis.
 
-- If a required input is missing or ambiguous, use Fast Candidate Resolution: make at most 3 total tool calls before asking the user to choose, including mandatory Sales preflight. Search only to produce useful concrete defaults, then ask the user to confirm or supply that required input before drafting.
-- Before asking the user to paste transcripts, call notes, rep names, or peer examples, first try `meeting_notes` for target-rep call candidates, peer-example candidates, call metadata, and transcript access. Manual transcript-like material is the fallback after `meeting_notes` is unavailable, empty, or too thin for evidence-backed coaching.
-- User confirmation is required for any required input inferred from sources rather than provided by the user.
-- When asking, present up to 5 concrete candidates with one-line rationale. Make lettered options usable as reply targets, but omit a separate reply-with-letter footer when the choices are already clear.
+### 3. Find peer exemplars and target moments
 
-When a required anchor is ambiguous, do the minimum source lookup needed to produce concrete choices within the Fast Candidate Resolution budget, then ask immediately. Do not gather enrichment evidence before the user selects the anchor.
+- Search for the moment, not just the meeting label: agenda control, discovery, value framing, objection handling, stakeholder mapping, pricing, security, procurement, next steps, or mutual action plan.
+- Prefer peer moves repeated across multiple calls, or several strong moments in one clearly relevant call.
+- Fetch only the calls needed to validate the pattern and show useful moments. For each fetched call, retain readable title/date/company context, motion, live link, connector-specific refetch handle for internal retrieval only, and three to eight observed moments.
+- Tag evidence internally as Peer exemplar, Target strength, or Target opportunity.
+- For each target opportunity, identify the exact moment, the peer move that fits it, and concrete language the rep could use next time.
 
-**Input Request Format Example:**
+### 4. Synthesize coaching without a scorecard
+
+- Do not create a formal rubric, rating, ranking, or scorecard.
+- Turn repeated peer behavior into a short best-practice list: what the peer does, why it works, one to three supporting peer examples, and a stealable line when the transcript supports one.
+- Map those practices to specific target moments: “In this target call, when this happened, use this peer move; here is how it could sound.”
+- Normally surface five to ten stealable peer moments and five to ten specific target upgrades; use fewer when the evidence does not support that many.
+- Keep strengths visible alongside upgrades so the output is useful for coaching, not just critique.
+
+### Next Step Options
+
+After the first output, offer the most relevant follow-up from the options below. Offer one clear transition, not a menu. Suggest ONLY these unless you are very confident another option is more useful:
+- Focus the coaching on one skill, motion, account, or call moment.
+- Add a practical 30-day practice plan grounded in the observed opportunities.
+- Draft a concise manager-to-rep or self-coaching note for review.
+- Compare an additional bounded call set when it would improve confidence or find better exemplars.
+- Turn the steal sheet into a reusable coaching document after review.
+
+Next steps to avoid:
+- Creating a scorecard, inferring performance or personality, or sending feedback automatically.
+
+## Modes
+
+- Benchmarked Feedback — default when target and peer evidence are available.
+- Focused Coaching — use when the user names one theme, motion, account, or small call set.
+- Limited Feedback — use when peer evidence, transcript depth, or comparable sample size is thin; clearly separate supported observations from coverage gaps.
+
+## Output Format
+
+Return these sections in order.
 
 ```md
-Which rep and call set should I review?
+# Call Feedback: [Target Rep]
 
-a. **{actual candidate}** - {short source-derived context}
-b. **{actual candidate}** - {short source-derived context}
+## TL;DR
+
+- [3-6 evidence-backed coaching takeaways]
+
+## Dataset Coverage
+
+- **Target calls reviewed:** [N; goal >=15]
+- **Peer calls reviewed:** [N total; peers included; goal >=15]
+- **Coverage window:** [Absolute target window] / [Absolute peer window]
+- **Comparable mix:** [Motion, segment, product focus, or mismatch]
+- **Confidence / limits:** [Shortfall, missing transcripts, or none material]
+
+## Peer Exemplars: Stealable Moves
+
+### [Behavior]
+
+- **What they do:** [Observable move]
+- **Why it works:** [Observable effect]
+- **Examples:** [Readable call context + short excerpt + inline call link]
+- **Stealable line:** “[Only transcript-supported language]”
+
+## Target Rep: Specific Upgrade Opportunities
+
+### [Upgrade]
+
+- **Moment observed:** [Readable target call context + short excerpt + inline call link]
+- **Peer exemplar move:** [Readable peer context + short excerpt + inline call link]
+- **Apply it like this:** [Specific behavior and suggested language]
+
+## Next-Call Steal Sheet
+
+- [10-15 practical behaviors or example lines]
+
+## Optional 30-Day Practice Plan
+
+[Include only when requested.]
+
+---
+
+{Follow the instructions and output format/conditions in [Limitations and Improvements](../index/SKILL.md#limitations-and-improvements)}
+
+{Follow the instructions and output format/conditions in [Next Steps](../index/SKILL.md#4-next-steps)}
 ```
 
-Proceed with a sensible default when the user supplies transcripts or a clear rep/time window.
+## Example Prompts
 
-### Workflow Sources
+- `Give feedback on a rep's calls.`
+- `Give feedback on Jamie's last three discovery calls.`
+- `Compare this rep's demo calls with strong peer examples and suggest coaching points.`
+- `Review these transcripts for talk-listen balance, qualification, and next-step clarity.`
 
-When this skill uses a source category, use it for the following information. Do not use indirect or mirrored sources, web search, or Computer Use as substitutes for the authoritative category.
+## Rules
 
-Source categories:
+- Ground every coaching claim in a call excerpt, transcript moment, or repeated observable pattern; never invent call content, outcomes, attendees, metrics, or deal context.
+- Cite examples with readable title/date/company context and compact inline numbered Markdown links. Prefer live transcript or call URLs; never expose raw connector ids.
+- Keep excerpts short, normally one to three lines and no more than 25 quoted words from one source.
+- Use peer examples only when the call mix is reasonably comparable; state mismatches and lower confidence when it is not.
+- If a useful call has no stable link, use readable context and say that no direct link was available.
+- Keep recommendations behavior-based and immediately usable. Do not infer intent, personality, or performance from thin evidence.
 
-- `meeting_notes`: call search, transcript fetches, call metadata, call/transcript URLs, speaker labels, participant context, dates, companies, and refetch handles.
-- user-provided context: pasted transcripts, uploaded/exported call notes, manager notes, coaching themes, rep/call lists, and peer exemplar examples.
+## Failure Handling
 
-Authority and gaps:
-
-- Use transcript/call-note evidence for behavioral claims. Do not infer coaching moments from memory or CRM summaries alone.
-- Treat CRM outcomes, manager notes, scorecards, and peer examples as coaching context only; do not use them as substitutes for transcript-backed or call-note-backed observed behavior.
-- Prefer live transcript/call URLs over raw connector ids in final output.
-- If transcript access is missing, continue only from transcript-like manual material that preserves enough context to support coaching claims.
-- If the call set is too small or uneven, produce a limited feedback memo and name the coverage gap instead of padding recommendations.
-
-### Context Gathering Principles
-
-Optimize for marginal value, not absolute speed.
-
-- Start with the canonical source and narrowest scope.
-- Gather evidence that materially improves the answer.
-- Take the 80/20 path when it gives a useful, grounded result.
-- Broaden only when the first pass is empty, thin, or misleading.
-- Answer once the core artifact is supported; name limitations and offer expansion options.
-
-### First-Run Banner
-
-If Sales preflight says the get-rep-call-feedback experience has not been introduced and this skill is the primary user-facing skill, render a compact first-run intro before the normal output:
-
-```md
-## Get Rep Call Feedback
-This skill helps compare a rep's call behavior with evidence from their calls and, when available, peer examples. It can use transcripts, call notes, scorecards, manager notes, CRM context, or pasted examples. It produces strengths, coaching opportunities, concrete examples, and practical next practice steps without overclaiming beyond the evidence.
-
-Definitions:
-- MAP: mutual action plan, a shared customer-and-seller plan with owners, milestones, and dates.
-```
-
-Starter prompts:
-
-- Primary default prompt: `Give feedback on a rep's calls.`
-- `@Sales give feedback on Jamie's last three discovery calls.`
-- `@Sales compare this rep's demo calls with strong peer examples and suggest coaching points.`
-- `@Sales review these transcripts for talk-listen balance, qualification, and next-step clarity.`
-
-When invoked by guided Sales onboarding:
-
-- Suppress the final CTA unless this skill intro is the active onboarding step.
-- Return status and next-step candidates for onboarding to arbitrate.
-- Mark whether this skill was introduced, tried, skipped, blocked, or accepted.
-
-### Next Step Guidance
-
-This section is the single owner for Get Rep Call Feedback next-step behavior and action text. Onboarding, coaching artifact creation, draft creation, posting or sharing, and follow-up turns may route into this journey or wrap its selected action in their own presentation frame, but they must not redefine the call-feedback continuation states elsewhere.
-
-#### Final Continuation Invariant
-
-Every final assistant response while `get-rep-call-feedback` is the active workflow must end with exactly one user-visible next action, phrased as a natural sentence or question in the ordinary prose of the response. This is a final-response gate, not a journey preference. It applies even when the response is only a short answer, local rewrite, one-paragraph summary, confirmation, readback, source-gap note, partial result, status after creating/updating/posting/saving/linking an artifact, or explanation of what changed. Before sending, inspect the final visible assistant-written content: if it does not end with a concrete next action, add the earliest valid continuation below or explicitly choose one of the allowed omission reasons.
-
-Omit the continuation only when the user explicitly asks for no follow-up, the workflow is explicitly closed by the user, a scheduled automation correctly returns `DONT_NOTIFY`, or another active parent flow owns the final CTA. Required-input and clarification responses are not omission cases; make the unresolved question the final natural continuation.
-
-If Sales onboarding is active and the `sales_preflight` final obligations include a core-onboarding reminder, fold the reminder into this same final natural continuation. Do not render a separate onboarding reminder plus a second CTA.
-
-#### Journey States
-
-Use the earliest state whose condition matches the current artifact. Do not end with only a bare confirmation, source link, or "done" message while a valid next step remains.
-
-| State | Use when | Final continuation |
-| --- | --- | --- |
-| **1. Review the coaching feedback** | The first substantive call-feedback output has just been produced. | `Anything you'd change in the coaching feedback before we turn it into something the rep or manager can use?` |
-| **2. Review the revised feedback** | The user asked for any change to coaching points, examples, peer moves, tone, audience, source treatment, or formatting. Make the change in chat first. | `Anything else you'd change? If that looks right, want me to draft the rep-facing note, practice plan, manager summary, or enablement snippet?` |
-| **3. Prepare the coaching artifact** | The user accepts the feedback, says no changes are needed, says a revision looks good, or asks to operationalize it. | Offer to produce the most useful next artifact or draft action, prioritizing rep-facing coaching note, practice plan, manager summary, enablement snippet, or rep-facing action list over broad suggestions. |
-| **4. Review the artifact or draft** | A coaching note, practice plan, manager summary, enablement snippet, or action list exists, or the user asks to change it. | `Anything you'd change before I save, post, or share this coaching artifact?` |
-| **5. Save, post, or share approved coaching action** | A reviewed artifact or draft exists and does not need edits. | Offer the specific supported action, such as saving the practice plan, sharing the manager summary, or posting the approved rep-facing note. Do not post or send messages unless the user explicitly asks for that action or approves the reviewed draft. |
-
-#### Acceptance Handling
-
-For follow-up turns after a visible continuation, treat short affirmative replies such as "yes," "ok," "okay," "sure," "sounds good," "looks good," "do it," or "go ahead" as acceptance of the offered journey step unless the user clearly declines, changes topic, or closes the workflow. If the previous continuation asked for review of the coaching feedback, treat a lightweight acknowledgement as acceptance and move to `Prepare the coaching artifact`. If the previous continuation offered to prepare an artifact or draft, produce that artifact or draft for review; do not interpret the acknowledgement as approval to post or send externally. If the previous continuation offered to save, post, or share a specific reviewed action, a lightweight affirmative can authorize that specific action when the available tool supports it. Execute the accepted action, then render the next valid natural continuation.
-
-### Source Links
-
-When referencing sources inline, prefer clickable Markdown links over plain bracket labels whenever the source exposes a useful URL. Use the source title, record name, channel/thread, or meeting/date as the link text. Use plain text labels only when no useful URL or stable connector-visible link is available, and say `(no useful link available)` when that absence matters.
-
-## Operating rules
-- **Be evidence-led**: Ground everything in call excerpts, transcript moments, or repeated patterns. If you can’t find enough calls, say so and propose a tighter search strategy.
-- **Never invent** call content, attendees, outcomes, metrics, or deal context.
-- **Use inline numbered markdown links to live transcript/call URLs in final user-facing output.** Keep raw connector ids only for retrieval/refetch logic.
-- `SKILL.md` owns the normal collection loop and output format. Use `references/call-transcripts-connector-playbook.md` only when date-window conversion, attendee-filter limitations, score-threshold fallback, or sparse-result recovery needs more detail. State the absolute coverage window in `Dataset coverage`.
-
----
-
-## Optional product focus (use only when helpful)
-Many reps sell one product area; don’t overcomplicate this. Only apply product focus when:
-- the user explicitly asks (e.g., “focus on API calls”), or
-- the dataset mixes motions/products and comparisons would be noisy, or
-- you need to hone in on one area to find better peer exemplars.
-
-**If product focus is not requested and not needed:** skip it.
-
-**If product focus is needed:** pick **one** product area, or a small set the user specifies, and add keywords from the user's wording, account context, provided product taxonomy, or call evidence. Do not run placeholder-only product searches.
-
----
-
-## Workflow
-
-### 1) Parse the user request
-Extract:
-- **Target rep email** (required)
-- **Peer rep emails** (optional but strongly recommended)
-- Optional scope: date range, company/account, call type/motion, topics (pricing/security/procurement), and **optional product focus**
-
-If peers are omitted:
-- Proceed only if the user explicitly names “top performers” to use as peers.
-- Otherwise, ask for **at least 2 peers** (or propose a peer list if the user provides team/segment constraints).
-
----
-
-### 2) Collect calls (repeat until sufficient)
-
-Use `meeting_notes` search and fetch tools. Search from the most reliable rep/timeframe filters first, convert relative windows to absolute dates before retrieval, put rep names or emails directly in search queries when attendee filters are unreliable, and use only a few bounded query variations when results are sparse.
-
-#### Dataset targets (strongly encouraged)
-- **Target rep**: find **at least 15 calls**
-- **Peers**: find **at least 15 calls total** across peers (or **~15 per peer** if the user requests strict peer-by-peer benchmarking)
-
-If you can’t reach these targets after a bounded first pass:
-- State the shortfall clearly (e.g., “Found 9 target calls in the last month”)
-- Expand date ranges or broaden keywords only when that is likely to change the coaching quality; otherwise proceed with a smaller sample, name the limitation, and offer to run a deeper collection pass.
-
-Collect target and peer calls with the same bounded search discipline, aiming for a comparable call mix by motion, segment, and product focus only when product focus is enabled. If the user gave a company/account, include it in the query string and any available structured filter, but do not rely on structured filters alone.
-
----
-
-### 3) Find strong peer exemplars
-Search for the moment you want, not just the meeting motion: objection handling, agenda control, next steps, stakeholder mapping, value framing, security review, pricing, procurement, or business case. Prefer best practices that repeat across multiple peer calls or multiple moments in one clearly strong call.
-
----
-
-### 4) For each fetched call, capture “coachable moments”
-For every call you fetch, extract:
-- Call title, date, company/account if available, and live transcript/call URL
-- Raw call id or `file-*` id for internal retrieval only
-- Motion/type (best-effort from transcript cues)
-- **Optional product focus flag** (only if enabled/needed)
-- 3–8 key moments, e.g.:
-  - Opening / agenda
-  - Discovery depth and sequencing
-  - Value framing and proof
-  - Objection handling
-  - Stakeholder mapping / buying process
-  - Next steps / MAP
-
-Tag moments as:
-- **Peer exemplar** (keep as a “great call” example)
-- **Target opportunity** (a moment where applying a peer move would help)
-- **Target strength** (keep/scale)
-
----
-
-### 5) Synthesize best practices (no formal rubric)
-Do **not** create a formal rubric or scorecard.
-
-Instead, produce:
-- **A short list of best practices that show up repeatedly in peer calls**
-- For each best practice:
-  - What the rep does (behavior)
-  - Why it works (observable effect)
-  - 1-3 peer examples (readable title/date/company context + inline numbered transcript links + short excerpt)
-  - A “stealable” line or mini-script (if transcript supports it)
-
-Then map to the target rep:
-- Identify **specific moments** in target calls where the peer move would apply
-- Write: **“In target call X, when Y happened, do Z instead. Here’s how it would sound.”**
-
----
-
-## Output format (what to deliver)
-
-1) **TL;DR** (3–6 bullets)
-
-2) **Dataset coverage**
-   - # target calls reviewed (goal ≥15)
-   - # peer calls reviewed (goal ≥15 total; note peers included)
-   - Date ranges used + any scoping notes (e.g., product focus enabled)
-
-3) **Peer exemplars: the best calls + why they’re great**
-   - 5–10 “stealable moments,” each with call citations + excerpts
-
-4) **Target rep: specific upgrade opportunities**
-   - 5–10 coaching points formatted as:
-     - **Moment observed** (readable title/date/company context + inline numbered transcript links + excerpt)
-     - **Peer exemplar move** (same citation style + excerpt)
-     - **Apply it like this** (very specific, with suggested language)
-
-5) **Next-call “steal sheet”**
-   - 10–15 practical behaviors + example lines
-
-6) Optional (only if requested): **30-day practice plan**
-
----
-
-## Output constraints
-- Quote short excerpts (1–3 lines) when available and useful.
-- Attribute examples with readable title/date/company context plus inline numbered markdown links to the live transcript/call URL.
-- Keep recommendations practical and behavior-based.
-- If dataset targets aren’t met, explicitly state limitations and provide next search moves.
-- Prefer the live transcript/call URL over raw connector ids.
-- If a call URL is missing unexpectedly, use readable title/date/company context only and note that a direct link was unavailable. Do not print the raw id.
-
-## References
-- See `references/call-transcripts-connector-playbook.md` for detailed search iteration patterns, attendee-filter limitations, and date-range defaults when the compact rules above are not enough.
+If the target, peer set, or call evidence cannot be resolved, state the smallest missing input and offer concrete candidates when available. If evidence is sparse, return the limited memo with supported observations, explicit coverage gaps, and the next bounded search that would improve it.

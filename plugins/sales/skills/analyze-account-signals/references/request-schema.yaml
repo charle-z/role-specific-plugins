@@ -22,9 +22,9 @@ owner_email: ""            # fallback owner identifier for monitor mode
 watchlist_accounts: []
 # Example:
 # watchlist_accounts:
-#   - "Datadog"
+#   - "ExampleCorp"
 #   - "001US00000ABC123"
-#   - company_name: "Stripe"
+#   - company_name: "ExampleCo"
 #     crm_account_id: "001US00000XYZ456"
 
 # Recency window for source queries and signal freshness.

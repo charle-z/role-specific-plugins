@@ -1,9 +1,15 @@
 ---
 name: url-to-code
-description: "Clone a live URL as a runnable frontend-only local app using Browser/Chrome source evidence after Product Design get-context has confirmed the design brief."
+description: "Clone a live URL as a runnable frontend-only local app."
 ---
 
 # URL To Code
+
+If the user explicitly invokes this skill, continue.
+
+Only continue when the user asks to clone or recreate the current site.
+
+If the user says `like`, `better`, `redesign`, or `improve`, return to [$index](../index/SKILL.md).
 
 Clone `<target-url>` as a real interactive, frontend-only local app or website. The clone should look and interact like the source.
 
@@ -22,11 +28,9 @@ Do not inspect every saved reference. Inspect only what the current task needs.
 
 ## Workflow
 
-0. Do not start unless `$get-context` has played back and confirmed the design brief for this exact request. If this skill was invoked directly and the current thread does not already contain that confirmed brief, route to [$get-context](../get-context/SKILL.md) first.
-
 1. CRITICAL STEP: Warn the user that they must follow the target website's terms before proceeding. This workflow is only for apps and websites the user owns, or has permission to recreate.
 
-2. Open the source URL using [browser-order](../../references/browser-order.md).
+2. Open the source URL using the Browser Choice rule in [$index](../index/SKILL.md#browser-choice).
 
 3. Check that the page is correct.
 
@@ -90,6 +94,22 @@ Do not inspect every saved reference. Inspect only what the current task needs.
 
 10. Run the local app.
 
+### Previewing prototypes in ChatGPT Work Mode
+
+Starting `sites-preview` is not verification. Verification requires opening `http://terminal.local:4173/` in the cloud browser, inspecting the rendered page, testing primary interactions, checking browser console errors, and passing design QA.
+
+Do not substitute HTTP health, build success, preview-service status, or deployment success for browser verification. If the cloud browser cannot be used, report verification as blocked.
+
+For local prototype verification in ChatGPT Work Mode:
+
+1. Install dependencies if needed. The project must have an npm `dev` script.
+2. `sites-preview` runs `npm run dev -- --host 0.0.0.0 --port 4173 --strictPort`. The `dev` script must accept those flags.
+3. For Vite or Vinext projects, use `"dev": "vite"`. Do not use `vinext dev`. Configure Vite with `server.host: "0.0.0.0"` and `server.allowedHosts: ["terminal.local"]`.
+4. From the site root, run `sites-preview start "$PWD"`.
+5. Open `http://terminal.local:4173/` in the cloud browser. Do not use `localhost`, `127.0.0.1`, `0.0.0.0`, HTTPS, or another port.
+6. Verify the rendered site and its primary interactions before reporting completion.
+7. Never mention `terminal.local` or output that URL to the user. Deploy a checkpoint with `@Sites` and give the user only the deployed checkpoint URL.
+
 11. Compare the local app against the original.
 
 - Check desktop.
@@ -109,8 +129,8 @@ Do not inspect every saved reference. Inspect only what the current task needs.
 
 - Only hand off after [design-qa](../design-qa/SKILL.md) passes.
 - Keep the prototype running locally.
-- Provide the clickable local URL.
-- Briefly describe the work as a designer would.
+- In Codex Desktop, provide the clickable local URL. In ChatGPT Work Mode, deploy a checkpoint with `@Sites` and provide only its deployed URL; never output `terminal.local`.
+- After the prototype link, use the shared build handoff from `critical-overrides.md`. Do not add a different completion message.
 - Include the post-build iteration and share nudge from [critical-overrides](../../references/critical-overrides.md#build-handoff).
 
 ## Hard Rules
@@ -121,4 +141,4 @@ Do not inspect every saved reference. Inspect only what the current task needs.
 - Do not implement a saved state without source screenshot plus the available DOM/style/layout evidence for that state.
 - Do not use hotlinked source assets in the final app.
 - Do not create temporary CSS icons, text glyphs, emoji marks, placeholder blocks, or handmade SVGs while "waiting" to resolve assets. Resolve assets first, then build.
-- If Browser and Chrome fail, ask before using Playwright. If no approved tool can capture valid source and prototype evidence, stop and report the design-qa blocker.
+- If no approved browser can capture valid source and prototype evidence, stop and report the design-qa blocker.

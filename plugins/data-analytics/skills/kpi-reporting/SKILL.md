@@ -1,8 +1,7 @@
 ---
 name: kpi-reporting
-description: "Produce leadership-ready KPI updates, scorecards, WBR/MBR/QBR summaries, target and pacing readouts, operating status narratives, and performance updates for known KPIs. Use when the work is to define KPI reporting context, validate metric definitions, present actuals versus comparison or plan, summarize validated drivers, and state implications or next actions."
+description: "Prepare KPI readouts, scorecards, WBR/MBR/QBR updates, and executive summaries from quantitative business or product metrics; use when the task is to report status, compare against targets, explain validated drivers, and state operating implications."
 ---
-
 # KPI Reporting
 
 Use this skill to turn business or product metrics into decision-ready operating readouts for leaders and teams. The job is to define the KPI contract, report status against the right comparison and target, include validated driver context, and state the operating implication clearly.
@@ -15,19 +14,12 @@ Use $metric-diagnostics when the readout needs fresh driver investigation, then 
 
 ## Skill Configuration
 
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
-
 ### Source Discovery And Verification
 
-Use the relevant semantic layer first when one exists. Treat it as the starting map for candidate metrics, tables, joins, filters, caveats, source precedence, and known conflicts.
+Use the relevant semantic layer as a starting map, not a boundary.
 
-Do not stop at the semantic layer or the first plausible source. Search across the relevant available company source lanes, including structured data or data warehouses, dashboards, company docs, team communication, notebooks, code repositories, and other connected company knowledge or data that could change the answer.
-
-For source-backed analytical work, always verify through live source reads. When the answer depends on data, run fresh data queries against the available structured-data sources before drawing conclusions, even when the semantic layer already names likely tables or definitions.
-
-Use the combined evidence to determine which source controls the answer, note meaningful disagreements, and state why the selected source is authoritative.
+1. **Explore all possible sources.** Search every connected or provided source that could contain task-relevant data or change the interpretation. Within each structured-data source, run fresh catalog or metadata discovery for relevant schemas, datasets, tables, views, models, and metrics. Known sources, tables, dashboards, and semantic mappings are starting points, not stopping points.
+2. **Compare duplicates and conflicts.** When sources overlap or disagree, compare ownership, freshness, definition, grain, coverage, and directness. Use the best authoritative source, or combine complementary sources when needed. Note material conflicts, explain why the selected source or sources control the answer, and verify selected data through live reads before concluding.
 
 ### Source Access Guardrail
 
@@ -52,6 +44,8 @@ Decide which metrics belong in the readout and what role each one plays before p
 Start with the primary KPI, then add the smallest set of supporting metrics needed to explain status. Supporting metrics can explain movement, guard against harmful tradeoffs, or show whether performance is pacing as expected.
 
 Lead with the metric that matters most to the audience. Do not add every available cut or comparison; include the metrics and slices decision-makers actually use, plus any that materially explain this update.
+
+When the primary KPI is top-line, composite, or otherwise not directly actionable, define its driver decomposition before interpreting it. Use an existing metric tree when available. Otherwise identify the smallest useful set of component drivers, such as numerator and denominator, volume and rate, mix, funnel stages, segments, cohorts, or operational inputs. Do not invent a causal hierarchy when source definitions do not support one.
 
 ### 3. Lock Metric Definitions And Sources
 
@@ -95,15 +89,21 @@ Translate the evidence, driver analysis, and business context into the operating
 
 After the analysis is assembled and before shaping the final readout, use $validate-data to review whether the numbers, methodology, caveats, and evidence support the claimed status, drivers, and implications. Resolve material issues before sharing; carry remaining limitations into the readout.
 
-### 9. Shape The Readout
+### 9. Hand Off The Readout
 
-Use the output shape the user requested. If they did not specify one, ask what format they want before building the readout. Common shapes include an inline written update, a document or report, a slide, or a slide deck.
+End by handing the validated KPI readout to $build-report unless the user explicitly requests an inline, chat-only, brief/no-artifact answer, asks not to create a report/file/artifact, or selects another primary artifact. A quick status update, brief readout, or findings-in-chat request is an inline output choice unless the user also asks for a report, document, deck, or durable artifact. When no explicit human waiver was given, the report handoff is mandatory; do not infer a waiver only because the user did not use the word "report".
 
-After the format is selected, load `references/report-templates.md` and use the matching pattern as a starting point. Adapt it to the audience, evidence, and artifact.
+Before handoff, make the readout explicit:
 
-Use $build-report for document or report outputs; it will handle report visuals and route chart work through $visualize-data. For inline updates, slides, or deck drafts that do not go through $build-report, use $visualize-data only when chart selection or visual QA materially affects the readout.
+- headline status and operating implication
+- actuals, targets, pacing basis, and comparison periods
+- validated drivers and unresolved uncertainty
+- audience, cadence, and requested delivery surface when known
+- charts or figures that would clarify the readout
 
-For slide or deck requests, use the user's requested output surface. If they want a presentation-style artifact, use $build-report to create a report artifact or HTML. If they need a native slide or deck, finalize the KPI story here, then pass the content to the appropriate presentation surface and keep the layout simple. Ask which path they want when the requested output is unclear.
+Load `references/report-templates.md` before handing off and use the matching pattern as source notes for $build-report. Tell $build-report this is a KPI readout and pass the status, pacing, driver, uncertainty, audience, cadence, surface, and visual guidance above. Do not render charts directly from this skill; pass visual intent and supporting evidence to $build-report so $visualize-data owns chart selection and QA.
+
+For native slide or deck requests, use $build-report to create an HTML report first because `$report-to-google-slides` consumes an existing local HTML analytics report and does not convert live MCP app reports directly. Then invoke `$report-to-google-slides` on that HTML report. If only an MCP app report exists, build an HTML report from the same source evidence as a separate delivery mode before conversion.
 
 ## Standards
 
@@ -127,6 +127,7 @@ For slide or deck requests, use the user's requested output surface. If they wan
 
 - Quantify drivers whenever the evidence supports it; do not use descriptive prose as a substitute for sizing the effect.
 - Report the few drivers, contributors, or known non-drivers that matter for interpreting the KPI movement.
+- For top-line KPI movement, structure validated drivers as a compact decomposition: top-line actual, component drivers, largest contributors or non-drivers, and residual or unresolved movement. Use an additive bridge only when the components reconcile cleanly; otherwise explain the relationship and uncertainty.
 - Separate validated drivers from business context or hypotheses.
 - Do not elevate business events into causes unless the timing, affected population, and measured change support the link.
 - State whether the movement is broad-based or concentrated when that changes the operating implication.

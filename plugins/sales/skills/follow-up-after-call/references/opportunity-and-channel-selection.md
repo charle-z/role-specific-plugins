@@ -1,6 +1,6 @@
 # Opportunity And Channel Selection
 
-## `crm` opportunity selection
+## ~~CRM Opportunity Selection
 
 Goal: choose the most relevant opportunity for the one-sentence next-steps text.
 
@@ -21,7 +21,7 @@ Support the choice with 1 to 2 direct-evidence bullets.
 Priority:
 
 1. user-provided opportunity name or link
-2. `crm` opportunity context or `document_store` account notes if available
+2. ~~CRM opportunity context or ~~Knowledge & Files account notes if available
 3. user clarification when candidates remain unclear
 
 ### Step 3: rank candidates
@@ -44,9 +44,9 @@ If no credible candidate exists:
 - still draft the sentence
 - append `(paste into the relevant opp)`
 
-## `internal_messaging` channel selection
+## ~~Internal Messaging Channel Selection
 
-User preference: `internal_messaging` channel search first, with a linked channel recommendation when a safe channel can be resolved.
+Default: search ~~Internal Messaging first and provide a linked channel recommendation when a safe channel can be resolved.
 
 Priority:
 
@@ -58,18 +58,18 @@ Priority:
 Internal-only rules:
 
 - reject channels with metadata indicating external or shared status
-- reject channels whose name, topic, or purpose suggests external sharing in the selected `internal_messaging` App
+- reject channels whose name, topic, or purpose suggests external sharing in the selected ~~Internal Messaging App
 - if safety is unclear, return draft text only and include a warning to verify the channel before posting
 
 Link rules:
 
 - Prefer the selected App's stable channel URL, channel permalink, or connector-provided web URL.
 - If the App exposes a channel id and display name but no useful URL, render the channel name and say `(no useful channel link available)`.
-- Never invent Slack URLs from channel ids, names, or guessed workspace paths.
+- Never invent internal-messaging URLs from channel ids, names, or guessed workspace paths.
 - If no channel search/read path is available, suggest a best-effort internal channel description from the call evidence and mark the link as unverified.
 
 Default behavior:
 
 - always return a draft
 - never post or send
-- if a later workflow sends the recap, show it locally or in the user's test private channel before any target-channel post
+- if the user later asks for a supported posting action, review the exact draft and destination before any separate approval step

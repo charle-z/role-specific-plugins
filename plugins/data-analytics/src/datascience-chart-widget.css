@@ -176,14 +176,25 @@
 
       .display-mode-button svg {
         display: block;
-        width: 14px;
-        height: 14px;
-        fill: currentColor;
+        width: 16px;
+        height: 16px;
+        fill: none;
         stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
-      .display-mode-button-label {
-        white-space: nowrap;
+      .display-mode-button {
+        aspect-ratio: 1 / 1;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        min-height: 32px;
+        padding: 0;
+        border-radius: 50%;
+        background: var(--ds-surface);
+        color: var(--ds-text-secondary);
       }
 
       .top-bar-button:hover,

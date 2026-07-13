@@ -101,6 +101,18 @@ function installHostCompatibilityShim(app, name) {
       return result;
     };
   }
+
+  if (typeof existing.sendMessage !== "function") {
+    let supportsMessages = false;
+    try {
+      supportsMessages = Boolean(app.getHostCapabilities()?.message?.text);
+    } catch {
+      supportsMessages = false;
+    }
+    if (supportsMessages) {
+      existing.sendMessage = (message) => app.sendMessage(message);
+    }
+  }
 }
 
 export function connectMcpWidgetHost({

@@ -1,17 +1,15 @@
 ---
 name: jupyter-notebooks
-description: "Create, scaffold, edit, refactor, and validate Jupyter notebooks (`.ipynb`) for reproducible SQL/Python analysis, experiments, modeling, tutorials, diagnostics, data-quality checks, market-sizing calculations, and report support. Use when the notebook itself is a deliverable, review artifact, runnable analysis companion, or handoff artifact that other people should be able to skim, rerun, or extend."
+description: "Create, edit, or validate reproducible SQL or Python notebooks. Use for notebooks, SQL/Python scratchpads, reproducible exploration, audit trails, or runnable companions where the analysis should be reviewable or rerunnable."
 ---
+
+## Related Skills
+
+Use $validate-data when notebook results support a recommendation, shared claim, or decision.
 
 # Jupyter Notebooks
 
 Create clean, reproducible Jupyter notebooks that are easy to skim, rerun, and handoff. Treat the notebook as a reader-facing analysis artifact, not a scratchpad dump. Notebook work is not complete until the notebook executes successfully top-to-bottom, or the execution gap is called out with the exact validation steps needed to reproduce it.
-
-## Skill Configuration
-
-### User Context
-
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
 
 ## Workflow
 
@@ -99,8 +97,7 @@ Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mod
   dashboard links, extract versions, or input file locations.
 - Make computation deterministic where possible. Avoid hidden state, manually edited intermediate values, out-of-order dependencies, and unexplained cached outputs.
 - Prefer explicit environment setup cells or notes when the notebook depends on nonstandard packages, kernels, credentials, or local files.
-- Include validation status in the final response: executed successfully,
-  partially executed, or not executed, with the reason.
+- Execute the notebook when the task requires a runnable artifact. In the final response, do not add a separate routine validation section for a clean run; surface execution gaps, partial execution, or unrun notebooks with the reason because those affect whether the user can rely on the artifact.
 
 ### Code And Data Hygiene
 

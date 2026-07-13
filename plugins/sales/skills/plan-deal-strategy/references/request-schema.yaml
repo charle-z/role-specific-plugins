@@ -7,13 +7,13 @@ properties:
     description: Customer account name.
   crm_account_id:
     type: string
-    description: "`crm` account ID if known."
+    description: "~~CRM account ID if known."
   sfdc_account_id:
     type: string
     description: "Legacy alias for `crm_account_id`; normalize to `crm_account_id` before use."
   opportunity_id:
     type: string
-    description: "`crm` opportunity ID if known."
+    description: "~~CRM opportunity ID if known."
   opportunity_name:
     type: string
   time_window_days:

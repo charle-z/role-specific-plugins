@@ -11,3 +11,11 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
+
+.mobile-prototype {
+  width: min(100vw, 390px);
+  height: min(100dvh, 844px);
+  margin-inline: auto;
+  overflow: hidden;
+  position: relative;
+}

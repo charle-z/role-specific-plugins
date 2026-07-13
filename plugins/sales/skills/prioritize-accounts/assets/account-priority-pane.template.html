@@ -3,30 +3,68 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Prioritize Accounts</title>
+    <meta name="color-scheme" content="light dark" />
+    <title>Priority Ledger — Sales Focus</title>
     <style>
       :root {
         color-scheme: light;
-        --bg: #f7f8fa;
-        --panel: #ffffff;
-        --panel-soft: #f9fafb;
-        --text: #182230;
-        --muted: #667085;
-        --line: #e4e7ec;
-        --line-strong: #d0d5dd;
-        --blue: #0b5cab;
-        --blue-soft: #e8f1ff;
-        --green: #16794c;
-        --green-soft: #e9f7ef;
-        --amber: #b65e00;
-        --amber-soft: #fff4df;
-        --red: #b42318;
-        --red-soft: #fff1f0;
-        --shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+        --bg: #f7faf8;
+        --bg-elevated: #ffffff;
+        --bg-hover: #f0f6f3;
+        --bg-control: rgba(255, 255, 255, 0.88);
+        --line: #dbe4df;
+        --line-strong: #bdcbc4;
+        --text: #16211c;
+        --muted: #68756f;
+        --subtle: #89948f;
+        --accent: #167a55;
+        --accent-strong: #0c6041;
+        --accent-soft: #dff3e9;
+        --accent-contrast: #ffffff;
+        --danger: #a73a35;
+        --backdrop: rgba(19, 29, 24, 0.42);
+        --shadow: 0 16px 50px rgba(27, 45, 35, 0.12);
+        --app-font-sans: var(
+          --font-sans,
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif
+        );
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --bg: #090f12;
+          --bg-elevated: #0d1519;
+          --bg-hover: rgba(18, 28, 32, 0.72);
+          --bg-control: rgba(15, 22, 26, 0.72);
+          --line: #243036;
+          --line-strong: #445159;
+          --text: #f3f5f4;
+          --muted: #899399;
+          --subtle: #5e696f;
+          --accent: #68d6a7;
+          --accent-strong: #a3eccb;
+          --accent-soft: #183028;
+          --accent-contrast: #072218;
+          --danger: #ff8580;
+          --backdrop: rgba(2, 6, 8, 0.66);
+          --shadow: -28px 0 80px rgba(0, 0, 0, 0.35);
+        }
       }
 
       * {
         box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+        background: var(--bg);
       }
 
       html {
@@ -35,19 +73,9 @@
         text-size-adjust: 100%;
       }
 
-      html,
-      body,
-      #app {
-        min-height: 100%;
-      }
-
       body {
-        margin: 0;
-        background: var(--bg);
         color: var(--text);
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          "Roboto", "Helvetica Neue", Arial, sans-serif;
+        font-family: var(--app-font-sans);
         font-size: 14px;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
@@ -56,7 +84,7 @@
 
       button,
       input,
-      select {
+      a {
         color: inherit;
         font: inherit;
       }
@@ -65,1161 +93,1342 @@
         cursor: pointer;
       }
 
-      .shell {
-        display: grid;
-        grid-template-rows: auto 1fr;
+      button:focus-visible,
+      input:focus-visible,
+      a:focus-visible,
+      summary:focus-visible {
+        border-radius: 6px;
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+
+      svg {
+        display: block;
+      }
+
+      .app-shell {
         min-height: 100vh;
+        background: var(--bg);
       }
 
       .topbar {
         position: sticky;
         top: 0;
-        z-index: 5;
-        display: flex;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: 1fr minmax(320px, 450px) 1fr auto;
         align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        min-height: 58px;
-        border-bottom: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: var(--shadow);
-        padding: 10px max(16px, calc(((100vw - 1320px) / 2) + 18px));
+        gap: 28px;
+        min-height: 76px;
+        border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+        background: color-mix(in srgb, var(--bg) 92%, transparent);
+        padding: 0 27px;
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
       }
 
-      .brand {
+      .brand-lockup {
         display: flex;
         align-items: center;
+        gap: 18px;
         min-width: 0;
-        gap: 10px;
+        font-size: 15px;
+      }
+
+      .brand-lockup strong {
+        overflow: hidden;
+        letter-spacing: -0.01em;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .brand-mark {
         display: grid;
-        place-items: center;
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         flex: 0 0 auto;
-        border-radius: 7px;
-        background: var(--blue);
-        color: #ffffff;
-        font-weight: 900;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--accent-contrast);
+        transform: rotate(-45deg);
       }
 
-      .brand-text {
-        min-width: 0;
+      .divider {
+        width: 1px;
+        height: 20px;
+        flex: 0 0 auto;
+        background: var(--line);
       }
 
-      .brand-text strong {
-        display: block;
+      .current-view {
         overflow: hidden;
+        color: var(--muted);
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      .brand-text strong {
-        color: #092b5a;
-        font-size: 15px;
-      }
-
-      .controls {
+      .search-box {
         display: flex;
         align-items: center;
-        justify-content: flex-end;
-        gap: 8px;
-        min-width: 0;
-      }
-
-      .control {
-        min-height: 34px;
+        gap: 11px;
+        height: 44px;
         border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #ffffff;
-        color: var(--text);
-        padding: 7px 9px;
-      }
-
-      .search {
-        width: min(280px, 32vw);
-      }
-
-      .main {
-        display: grid;
-        gap: 22px;
-        width: min(1120px, 100%);
-        margin: 0 auto;
-        padding: 22px 18px 34px;
-      }
-
-      .scenario-panel {
-        display: grid;
-        gap: 6px;
-      }
-
-      .scenario-note {
+        border-radius: 9px;
+        background: var(--bg-control);
         color: var(--muted);
-        font-size: 12px;
-        line-height: 1.45;
+        padding: 0 14px;
+        transition:
+          border-color 150ms ease,
+          background 150ms ease;
       }
 
-      .scenario-options {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
+      .search-box:focus-within {
+        border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+        background: var(--bg-elevated);
       }
 
-      .scenario-button {
-        min-height: 26px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #ffffff;
-        color: #344054;
-        font-size: 12px;
-        font-weight: 650;
-        line-height: 1;
-        padding: 5px 9px;
-      }
-
-      .scenario-button:hover {
-        border-color: var(--line-strong);
-        background: #fbfcfe;
-      }
-
-      .scenario-button.is-active {
-        border-color: #9cc3f5;
-        background: var(--blue-soft);
-        color: #092b5a;
-      }
-
-      .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 10px;
-      }
-
-      .section > .summary-grid {
-        padding: 0 12px 12px;
-      }
-
-      .metric {
-        min-width: 0;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--panel);
-        box-shadow: var(--shadow);
-        padding: 10px;
-      }
-
-      .metric span {
-        display: block;
-        color: var(--muted);
-        font-size: 10px;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      .metric strong {
-        display: block;
-        overflow: hidden;
-        margin-top: 5px;
-        font-size: 20px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .section {
-        overflow: hidden;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
-      }
-
-      .section-header {
-        display: grid;
-        gap: 8px;
-        border-bottom: 0;
-        background: transparent;
-        padding: 0 0 9px;
-      }
-
-      .section-title {
-        min-width: 0;
-      }
-
-      h1,
-      h2,
-      p {
-        margin: 0;
-      }
-
-      h1 {
-        font-size: 22px;
-        line-height: 28px;
-        overflow-wrap: anywhere;
-      }
-
-      h2 {
-        color: #344054;
-        font-size: 14px;
-        letter-spacing: 0.01em;
-        line-height: 18px;
-      }
-
-      .subtle {
-        color: var(--muted);
-        font-size: 12px;
-      }
-
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        min-height: 24px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 800;
-        padding: 3px 9px;
-        white-space: nowrap;
-      }
-
-      .status-text {
-        color: var(--muted);
-        font-weight: 700;
-      }
-
-      .status-text.high {
-        color: var(--green);
-      }
-
-      .status-text.medium {
-        color: var(--amber);
-      }
-
-      .status-text.low {
-        color: var(--red);
-      }
-
-      .tone-ready,
-      .tone-ready-now,
-      .tone-high {
-        background: var(--green-soft);
-        color: var(--green);
-      }
-
-      .tone-partial,
-      .tone-monitor,
-      .tone-medium {
-        background: var(--amber-soft);
-        color: var(--amber);
-      }
-
-      .tone-blocked,
-      .tone-suppressed,
-      .tone-low {
-        background: var(--red-soft);
-        color: var(--red);
-      }
-
-      .tone-info {
-        background: var(--blue-soft);
-        color: #092b5a;
-      }
-
-      .scope-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        padding: 12px;
-      }
-
-      .field {
-        min-width: 0;
-        border: 1px solid var(--line);
-        border-radius: 7px;
-        background: #ffffff;
-        padding: 9px;
-      }
-
-      .field span {
-        display: block;
-        color: var(--muted);
-        font-size: 10px;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-
-      .field strong {
-        display: block;
-        margin-top: 3px;
-        overflow-wrap: anywhere;
-      }
-
-      .table-wrap {
-        display: none;
-        overflow-x: auto;
-        scrollbar-gutter: stable;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #ffffff;
-        box-shadow: var(--shadow);
-      }
-
-      table {
+      .search-box input {
         width: 100%;
-        min-width: 900px;
-        border-collapse: collapse;
-        table-layout: fixed;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--text);
+        font-size: 14px;
       }
 
-      .table-suggested-focus {
-        min-width: 1240px;
+      .search-box input::placeholder {
+        color: var(--subtle);
       }
 
-      .table-monitor {
-        min-width: 1120px;
-      }
-
-      .table-suppress-or-block {
-        min-width: 1100px;
-      }
-
-      th {
-        border-bottom: 1px solid var(--line-strong);
-        background: #f8fafc;
+      .search-clear {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
         color: var(--muted);
-        font-size: 11px;
-        letter-spacing: 0.04em;
-        line-height: 1.25;
-        overflow-wrap: anywhere;
-        padding: 10px 12px;
-        text-align: left;
-        text-transform: uppercase;
-        white-space: nowrap;
-      }
-
-      td {
-        border-bottom: 1px solid var(--line);
-        padding: 12px;
-        vertical-align: top;
-        overflow-wrap: anywhere;
-      }
-
-      tbody tr:hover {
-        background: #f8fbff;
-      }
-
-      tr:last-child td {
-        border-bottom: 0;
-      }
-
-      td strong {
-        display: block;
-        overflow-wrap: anywhere;
-      }
-
-      .col-account {
-        width: 160px;
-      }
-
-      .col-rank {
-        width: 72px;
-      }
-
-      .col-confidence,
-      .col-status {
-        width: 108px;
-      }
-
-      .col-contact {
-        width: 190px;
-      }
-
-      .col-why,
-      .col-next {
-        width: 260px;
-      }
-
-      .col-date {
-        width: 145px;
-      }
-
-      .col-cleanup {
-        width: 240px;
-      }
-
-      .col-angle {
-        width: 230px;
-      }
-
-      .col-opp {
-        width: 200px;
-      }
-
-      .col-evidence {
-        width: 280px;
-      }
-
-      .account-link {
-        color: var(--blue);
-        font-weight: 800;
-        text-decoration: none;
-      }
-
-      .account-link:hover {
-        text-decoration: underline;
-      }
-
-      .cards {
-        display: block;
         padding: 0;
       }
 
-      .card {
-        display: grid;
-        gap: 10px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #ffffff;
-        box-shadow: var(--shadow);
-        padding: 12px 14px;
-      }
-
-      .card + .card {
-        margin-top: 8px;
-      }
-
-      .card-top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      .card-title {
-        display: grid;
-        gap: 3px;
-        min-width: 0;
-      }
-
-      .card-title > strong {
-        font-size: 15px;
-        line-height: 1.2;
-      }
-
-      .card-meta {
-        color: var(--muted);
-        font-size: 12px;
-        line-height: 1.35;
-      }
-
-      .card-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px 14px;
-      }
-
-      .card-field {
-        min-width: 0;
-      }
-
-      .card-field span {
-        display: block;
-        color: #344054;
-        font-size: 10px;
-        font-weight: 750;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-      }
-
-      .card-field.is-cleanup {
-        border-left: 0;
-        padding-left: 0;
-      }
-
-      .card-field.is-cleanup span,
-      .inline-note strong {
-        color: var(--muted);
-      }
-
-      .card-field .card-value {
-        display: block;
-        margin-top: 3px;
+      .search-clear:hover {
+        background: var(--bg-hover);
         color: var(--text);
-        font-size: 13px;
-        overflow-wrap: anywhere;
-        font-weight: 400;
-        line-height: 1.4;
       }
 
-      .card-note {
-        border-top: 1px solid #eef2f7;
+      .search-clear[hidden] {
+        display: none;
+      }
+
+      .sync-state {
+        display: flex;
+        align-items: center;
+        justify-self: end;
+        gap: 8px;
+        overflow: hidden;
         color: var(--muted);
         font-size: 12px;
-        line-height: 1.35;
-        padding-top: 8px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      .inline-note {
-        color: var(--muted);
-        font-size: 12px;
-        line-height: 1.4;
-        margin-top: 8px;
+      .sync-dot {
+        width: 7px;
+        height: 7px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
       }
 
-      .inline-note strong {
-        color: #344054;
-      }
-
-      .gaps {
-        display: grid;
-        gap: 6px;
+      .avatar {
+        width: 34px;
+        height: 34px;
         border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #ffffff;
-        padding: 14px 16px;
+        border-radius: 50%;
+        background: var(--bg-elevated);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 700;
       }
 
-      .gap {
+      .content {
+        width: 100%;
+        padding: 38px 27px 24px;
+      }
+
+      .page-intro h1 {
+        margin: 0;
+        letter-spacing: -0.02em;
+        font-size: 19px;
+        font-weight: 620;
+        line-height: 1.3;
+      }
+
+      .page-intro p {
+        max-width: 680px;
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .status-tabs {
         display: grid;
-        grid-template-columns: 10px 1fr;
-        gap: 9px;
+        grid-template-columns: repeat(3, 1fr);
+        width: min(580px, 100%);
+        height: 56px;
+        margin-top: 36px;
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        padding: 4px;
+      }
+
+      .status-tabs button {
+        position: relative;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 14px;
+        transition:
+          background 150ms ease,
+          color 150ms ease;
+      }
+
+      .status-tabs button + button::before {
+        position: absolute;
+        top: 14px;
+        left: 0;
+        width: 1px;
+        height: 20px;
+        background: var(--line);
+        content: "";
+      }
+
+      .status-tabs button:hover {
+        color: var(--text);
+      }
+
+      .status-tabs button[aria-selected="true"] {
+        background: var(--accent-soft);
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .status-tabs button[aria-selected="true"]::before,
+      .status-tabs button[aria-selected="true"] + button::before {
+        opacity: 0;
+      }
+
+      .tab-count {
+        display: inline-grid;
+        min-width: 24px;
+        height: 24px;
+        margin-left: 8px;
+        place-items: center;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--line) 64%, transparent);
+        color: var(--text);
+        padding: 0 7px;
+        font-size: 12px;
+      }
+
+      .status-tabs button[aria-selected="true"] .tab-count {
+        background: color-mix(in srgb, var(--accent) 22%, transparent);
+      }
+
+      .ledger {
+        margin-top: 36px;
+      }
+
+      .ledger-head {
+        display: grid;
+        grid-template-columns: 29% 26% 30% 15%;
+        align-items: center;
+        height: 48px;
+        border-bottom: 1px solid var(--line);
+        color: var(--subtle);
+        padding: 0 48px 0 72px;
+        font-size: 12px;
+        letter-spacing: 0.01em;
+      }
+
+      .account-list {
+        min-height: 160px;
+      }
+
+      .account-row {
+        display: grid;
+        grid-template-columns:
+          52px calc(29% - 52px) 26% 30% calc(15% - 42px)
+          42px;
+        align-items: center;
+        min-height: 172px;
+        border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+        transition:
+          background 150ms ease,
+          opacity 150ms ease;
+      }
+
+      .account-row:hover {
+        background: var(--bg-hover);
+      }
+
+      .account-row.is-complete {
+        opacity: 0.52;
+      }
+
+      .account-row.is-complete .action-copy {
+        text-decoration: line-through color-mix(in srgb, var(--accent) 60%, transparent);
+      }
+
+      .rank {
+        color: var(--accent);
+        padding-left: 8px;
+        font-size: 18px;
+        font-weight: 560;
+      }
+
+      .account-cell {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-width: 0;
+        padding-right: 22px;
+      }
+
+      .company-logo {
+        display: grid;
+        width: 68px;
+        height: 68px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+        border-radius: 14px;
+        background:
+          linear-gradient(
+            145deg,
+            color-mix(in srgb, var(--logo-accent) 30%, var(--bg-elevated)),
+            var(--bg-elevated)
+          );
+        color: var(--logo-accent);
+        font-size: 19px;
+        font-weight: 760;
+        letter-spacing: -0.03em;
+      }
+
+      .account-copy {
+        min-width: 0;
+      }
+
+      .account-copy h2 {
+        overflow: hidden;
+        margin: 0 0 9px;
+        letter-spacing: -0.015em;
+        font-size: 16px;
+        font-weight: 620;
+        line-height: 1.35;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .account-copy p,
+      .account-copy span {
+        display: block;
+        overflow: hidden;
+        margin: 0;
         color: var(--muted);
         font-size: 13px;
+        line-height: 1.65;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      .dot {
-        width: 5px;
-        height: 5px;
-        margin-top: 7px;
-        border-radius: 999px;
-        background: var(--blue);
+      .account-copy span {
+        color: var(--subtle);
       }
 
-      .empty {
-        border: 1px dashed var(--line);
-        border-radius: 10px;
-        background: #ffffff;
+      .why-cell {
+        align-self: center;
+        min-width: 0;
+        padding-right: 34px;
+      }
+
+      .why-cell strong {
+        display: block;
+        overflow: hidden;
+        margin-bottom: 9px;
+        color: var(--accent);
+        font-size: 17px;
+        font-weight: 610;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .why-cell p {
+        display: -webkit-box;
+        overflow: hidden;
+        max-width: 340px;
+        margin: 0;
         color: var(--muted);
-        padding: 22px;
+        font-size: 13px;
+        line-height: 1.5;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+      }
+
+      .action-cell {
+        display: grid;
+        grid-template-columns: 38px 1fr;
+        align-items: start;
+        gap: 14px;
+        min-width: 0;
+        padding-right: 40px;
+      }
+
+      .complete-button {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 1px solid var(--accent);
+        border-radius: 50%;
+        background: transparent;
+        color: var(--accent);
+        padding: 0;
+        transition:
+          background 150ms ease,
+          color 150ms ease,
+          transform 150ms ease;
+      }
+
+      .complete-button:hover,
+      .complete-button[aria-pressed="true"] {
+        background: var(--accent);
+        color: var(--accent-contrast);
+        transform: translateX(2px);
+      }
+
+      .action-copy {
+        display: -webkit-box;
+        overflow: hidden;
+        border: 0;
+        background: transparent;
+        color: var(--accent);
+        padding: 0;
+        text-align: left;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+      }
+
+      .action-copy:hover {
+        color: var(--accent-strong);
+      }
+
+      .owner-cell {
+        display: grid;
+        gap: 14px;
+        color: var(--text);
+        font-size: 12px;
+      }
+
+      .owner-cell span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .owner-cell span > span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .owner-cell svg {
+        flex: 0 0 auto;
+        color: var(--muted);
+      }
+
+      .open-row {
+        display: grid;
+        width: 36px;
+        height: 44px;
+        place-items: center;
+        border: 0;
+        background: transparent;
+        color: var(--subtle);
+        padding: 0;
+        transition:
+          color 150ms ease,
+          transform 150ms ease;
+      }
+
+      .open-row:hover {
+        color: var(--accent);
+        transform: translateX(2px);
+      }
+
+      .result-count {
+        margin: 16px 0 0;
+        color: var(--subtle);
+        text-align: center;
+        font-size: 11px;
+      }
+
+      .empty-state {
+        display: grid;
+        min-height: 360px;
+        place-content: center;
+        justify-items: center;
+        color: var(--muted);
         text-align: center;
       }
 
-      .footnote {
-        color: var(--muted);
-        font-size: 12px;
-        padding: 0 2px 4px;
+      .empty-state h2 {
+        margin: 14px 0 5px;
+        color: var(--text);
+        font-size: 17px;
       }
 
-      .source-note {
-        color: var(--muted);
+      .empty-state p {
+        max-width: 420px;
+        margin: 0;
         font-size: 13px;
-        line-height: 1.45;
-        padding: 0 2px 4px;
       }
 
-      .meta-section {
+      .run-details {
+        width: min(760px, 100%);
+        margin: 22px auto 0;
         border-top: 1px solid var(--line);
-        padding: 18px 0 0;
+        color: var(--muted);
+        padding-top: 14px;
+        font-size: 12px;
       }
 
-      .meta-title {
-        color: #344054;
-        font-size: 14px;
-        font-weight: 650;
-        margin-bottom: 10px;
+      .run-details summary {
+        width: fit-content;
+        margin: 0 auto;
+        cursor: pointer;
+        color: var(--muted);
+        list-style: none;
       }
 
-      .meta-grid {
+      .run-details summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .run-details summary:hover {
+        color: var(--text);
+      }
+
+      .run-details-content {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px 28px;
+        padding: 18px 0 4px;
       }
 
-      .meta-item {
+      .run-detail {
         min-width: 0;
       }
 
-      .meta-item span {
+      .run-detail span {
         display: block;
+        margin-bottom: 3px;
+        color: var(--subtle);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .run-detail strong {
+        display: block;
+        overflow-wrap: anywhere;
+        color: var(--text);
+        font-weight: 520;
+      }
+
+      .evidence-gaps {
+        grid-column: 1 / -1;
+        margin: 2px 0 0;
+        padding-left: 18px;
+      }
+
+      .evidence-gaps li + li {
+        margin-top: 4px;
+      }
+
+      .drawer-backdrop {
+        position: fixed;
+        z-index: 30;
+        inset: 0;
+        background: var(--backdrop);
+        animation: fade-in 180ms ease-out;
+        -webkit-backdrop-filter: blur(3px);
+        backdrop-filter: blur(3px);
+      }
+
+      .drawer-backdrop[hidden] {
+        display: none;
+      }
+
+      .detail-drawer {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(520px, 92vw);
+        overflow-y: auto;
+        border-left: 1px solid var(--line);
+        background: var(--bg-elevated);
+        box-shadow: var(--shadow);
+        padding: 42px;
+        animation: slide-in 240ms ease-out;
+      }
+
+      .drawer-close {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        background: transparent;
         color: var(--muted);
-        font-size: 10px;
-        letter-spacing: 0.04em;
+        padding: 0;
+      }
+
+      .drawer-close:hover {
+        background: var(--bg-hover);
+        color: var(--text);
+      }
+
+      .drawer-logo {
+        margin-bottom: 28px;
+      }
+
+      .eyebrow {
+        margin: 0 0 9px;
+        color: var(--accent);
+        font-size: 11px;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
       }
 
-      .meta-item strong {
-        display: block;
-        margin-top: 2px;
+      .detail-drawer h2 {
+        max-width: calc(100% - 44px);
+        margin: 0;
+        letter-spacing: -0.035em;
+        font-size: 28px;
+        line-height: 1.18;
+      }
+
+      .drawer-meta {
+        margin: 8px 0 26px;
+        color: var(--muted);
         font-size: 13px;
-        line-height: 1.4;
-        font-weight: 400;
       }
 
-      @media (max-width: 1180px) {
-        .summary-grid,
-        .scope-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+      .drawer-section {
+        border-top: 1px solid var(--line);
+        padding: 26px 0;
+      }
+
+      .drawer-section > span,
+      .drawer-action > span {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--subtle);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .drawer-section strong {
+        color: var(--accent);
+        font-size: 22px;
+      }
+
+      .drawer-section p,
+      .drawer-action p {
+        margin: 0;
+        color: var(--text);
+        font-size: 15px;
+        line-height: 1.65;
+      }
+
+      .drawer-action {
+        margin-top: 6px;
+        border-radius: 12px;
+        background: var(--accent-soft);
+        padding: 24px;
+      }
+
+      .drawer-action p {
+        font-size: 17px;
+      }
+
+      .drawer-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        width: 100%;
+        height: 44px;
+        margin-top: 24px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: var(--accent-contrast);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .drawer-link:hover {
+        background: var(--accent-strong);
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
         }
       }
 
-      @media (min-width: 1320px) {
-        .main {
-          width: min(1320px, 100%);
+      @keyframes slide-in {
+        from {
+          opacity: 0.5;
+          transform: translateX(40px);
+        }
+      }
+
+      @media (max-width: 1100px) {
+        .topbar {
+          grid-template-columns: 1fr minmax(280px, 360px) auto;
         }
 
-        .table-wrap {
-          display: block;
-        }
-
-        .cards {
+        .sync-state {
           display: none;
         }
 
-        .card-grid {
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        .ledger-head {
+          grid-template-columns: 34% 27% 39%;
+          padding-right: 32px;
+        }
+
+        .ledger-head span:last-child {
+          display: none;
+        }
+
+        .account-row {
+          grid-template-columns: 45px calc(34% - 45px) 27% 39% 34px;
+          min-height: 182px;
+        }
+
+        .owner-cell {
+          display: none;
+        }
+
+        .action-cell {
+          padding-right: 24px;
         }
       }
 
-      @media (max-width: 640px) {
+      @media (min-width: 761px) and (max-height: 980px) {
+        .content {
+          padding-top: 28px;
+        }
+
+        .status-tabs {
+          margin-top: 26px;
+        }
+
+        .ledger {
+          margin-top: 24px;
+        }
+
+        .ledger-head {
+          height: 42px;
+        }
+
+        .account-row {
+          min-height: 142px;
+        }
+
+        .company-logo {
+          width: 60px;
+          height: 60px;
+          border-radius: 12px;
+        }
+
+        .account-cell {
+          gap: 16px;
+        }
+
+        .account-copy h2,
+        .why-cell strong {
+          margin-bottom: 6px;
+        }
+      }
+
+      @media (max-width: 760px) {
         .topbar {
-          position: static;
-          align-items: stretch;
-          flex-direction: column;
+          grid-template-columns: 1fr auto;
+          min-height: 72px;
+          padding: 16px 18px;
         }
 
-        .controls {
-          align-items: stretch;
-          flex-direction: column;
+        .brand-lockup .divider,
+        .current-view,
+        .avatar {
+          display: none;
         }
 
-        .search {
+        .search-box {
+          grid-area: 2 / 1 / auto / -1;
           width: 100%;
         }
 
-        .summary-grid,
-        .scope-grid,
-        .meta-grid,
-        .card-grid {
+        .content {
+          padding: 28px 18px 20px;
+        }
+
+        .status-tabs {
+          margin-top: 28px;
+        }
+
+        .ledger {
+          margin-top: 24px;
+        }
+
+        .ledger-head {
+          display: none;
+        }
+
+        .account-row {
+          grid-template-columns: 32px 1fr 32px;
+          gap: 0;
+          min-height: 0;
+          padding: 24px 0;
+        }
+
+        .rank {
+          grid-area: 1 / 1;
+          align-self: start;
+          padding-top: 4px;
+          padding-left: 0;
+        }
+
+        .account-cell {
+          grid-area: 1 / 2;
+        }
+
+        .company-logo {
+          width: 54px;
+          height: 54px;
+          border-radius: 11px;
+          font-size: 16px;
+        }
+
+        .why-cell {
+          grid-area: 2 / 2;
+          padding: 22px 10px 0 72px;
+        }
+
+        .action-cell {
+          grid-area: 3 / 2;
+          padding: 22px 10px 0 72px;
+        }
+
+        .owner-cell {
+          display: grid;
+          grid-area: 4 / 2;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          padding: 22px 10px 0 72px;
+        }
+
+        .open-row {
+          grid-area: 1 / 3 / 5;
+        }
+
+        .account-copy h2 {
+          font-size: 15px;
+        }
+
+        .run-details-content {
           grid-template-columns: 1fr;
         }
 
-        .main {
-          padding: 10px;
+        .evidence-gaps {
+          grid-column: 1;
+        }
+
+        .detail-drawer {
+          padding: 34px 28px;
         }
       }
 
-      @media (forced-colors: active) {
-        .brand-mark {
-          background: Highlight;
-          color: HighlightText;
+      @media (max-width: 480px) {
+        .status-tabs {
+          height: auto;
         }
 
-        .field,
-        .metric,
-        .pill,
-        .section,
-        .card {
-          border: 1px solid CanvasText;
+        .status-tabs button {
+          min-height: 48px;
+          font-size: 13px;
+        }
+
+        .tab-count {
+          min-width: 21px;
+          height: 21px;
+          margin-left: 4px;
+          padding: 0 5px;
+          font-size: 11px;
+        }
+
+        .account-cell {
+          gap: 13px;
+        }
+
+        .why-cell,
+        .action-cell,
+        .owner-cell {
+          padding-left: 67px;
+        }
+
+        .owner-cell {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
         }
       }
     </style>
   </head>
   <body>
-    <script id="prioritize-accounts-data" type="application/json">
-__PRIORITIZE_ACCOUNTS_DATA_JSON__
-    </script>
-    <div id="app"></div>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <strong>Priority Ledger</strong>
+          <span class="divider" aria-hidden="true"></span>
+          <span class="current-view">Sales Focus</span>
+        </div>
+
+        <label class="search-box">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8" />
+            <path d="m16.3 16.3 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          <input id="search" type="search" placeholder="Search accounts or actions" aria-label="Search accounts or actions" autocomplete="off" />
+          <button id="search-clear" class="search-clear" type="button" aria-label="Clear search" hidden>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </label>
+
+        <div class="sync-state" title="Source status">
+          <span class="sync-dot" aria-hidden="true"></span>
+          <span id="sync-copy">Connected sources used</span>
+        </div>
+
+        <button id="avatar" class="avatar" type="button" aria-label="Sales focus profile">SF</button>
+      </header>
+
+      <section class="content">
+        <div class="page-intro">
+          <h1 id="page-title">Account priorities</h1>
+          <p>Where to spend time, who to involve, and the next best action for each account.</p>
+        </div>
+
+        <nav id="status-tabs" class="status-tabs" aria-label="Account status" role="tablist"></nav>
+
+        <section class="ledger" aria-live="polite">
+          <div class="ledger-head" aria-hidden="true">
+            <span>Account</span>
+            <span>Why it matters</span>
+            <span>Next action</span>
+            <span>Owner &amp; due</span>
+          </div>
+          <div id="account-list" class="account-list"></div>
+          <p id="result-count" class="result-count"></p>
+        </section>
+
+        <details class="run-details">
+          <summary>Source &amp; run details</summary>
+          <div id="run-details-content" class="run-details-content"></div>
+        </details>
+      </section>
+    </main>
+
+    <div id="drawer-backdrop" class="drawer-backdrop" hidden>
+      <aside id="detail-drawer" class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"></aside>
+    </div>
+
     <script>
-      const templateToken = ["__PRIORITIZE", "ACCOUNTS", "DATA", "JSON__"].join("_");
-      const rawData = document.getElementById("prioritize-accounts-data").textContent.trim();
-      const data = prepare(parseData(rawData));
-      const scenarios = [
-        ["balanced", "Balanced", "Default view: balances deal value, timing, customer momentum, CRM hygiene, and clear next action."],
-        ["deal-value", "Deal Value", "Favors the largest open opportunities and highest-value accounts first."],
-        ["close-soon", "Close Soon", "Favors overdue or near-term opportunities with enough activity to validate, close, or clean up now."],
-        ["expansion", "Expansion", "Favors existing customers, renewal or expansion motion, partner/co-sell paths, and strategic upside."],
+      const payload = __PRIORITIZE_ACCOUNTS_DATA_JSON__;
+
+      const icons = {
+        arrow: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        check: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 12 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        close: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        calendar: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M7 3v4M17 3v4M3 10h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+        external: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 5h5v5M19 5l-9 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+        search: '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.5"/><path d="m16.3 16.3 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+        user: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+      };
+
+      const tabConfig = [
+        { key: "workNow", label: "Work now" },
+        { key: "watch", label: "Watch" },
+        { key: "paused", label: "Paused" }
       ];
-      const state = { q: "", filter: "all", scenario: "balanced" };
 
-      function parseData(raw) {
-        if (!raw || raw === templateToken) {
-          return {
-            title: "Prioritize Accounts",
-            generatedAt: new Date().toISOString(),
-            source: { label: "No source selected", status: "No account ranking loaded" },
-            scope: {},
-            workNow: [],
-            monitor: [],
-            suppressOrBlock: [],
-            evidenceGaps: ["No account ranking has been loaded yet."],
-          };
-        }
-        try {
-          return JSON.parse(raw);
-        } catch (error) {
-          return {
-            title: "Prioritize Accounts",
-            generatedAt: new Date().toISOString(),
-            source: { label: "Account ranking", status: "Could not load source results" },
-            scope: {},
-            workNow: [],
-            monitor: [],
-            suppressOrBlock: [],
-            evidenceGaps: ["The account ranking could not be loaded. Regenerate the view from connected source results."],
-          };
-        }
+      const groups = Object.fromEntries(
+        tabConfig.map(({ key }) => [key, Array.isArray(payload[key]) ? payload[key] : []])
+      );
+
+      const state = {
+        tab: groups.workNow.length ? "workNow" : tabConfig.find(({ key }) => groups[key].length)?.key || "workNow",
+        query: "",
+        complete: new Set(),
+        selected: null
+      };
+
+      const list = document.getElementById("account-list");
+      const tabs = document.getElementById("status-tabs");
+      const count = document.getElementById("result-count");
+      const search = document.getElementById("search");
+      const searchClear = document.getElementById("search-clear");
+      const backdrop = document.getElementById("drawer-backdrop");
+      const drawer = document.getElementById("detail-drawer");
+
+      function text(value, fallback = "Not available") {
+        const normalized = value == null ? "" : String(value).trim();
+        return normalized || fallback;
       }
 
-      function prepare(payload) {
-        const workNow = array(payload.workNow || payload.work_now || payload.accounts).map(normalizeWorkNow);
-        const monitor = array(payload.monitor).map(normalizeMonitor);
-        const suppressOrBlock = array(payload.suppressOrBlock || payload.suppress_or_block || payload.suppressions).map(normalizeSuppress);
-        return {
-          title: payload.title || "Prioritize Accounts",
-          generatedAt: payload.generatedAt || payload.generated_at || new Date().toISOString(),
-          source: normalizeSource(payload.source),
-          scope: payload.scope || {},
-          workNow,
-          monitor,
-          suppressOrBlock,
-          evidenceGaps: array(payload.evidenceGaps || payload.evidence_gaps || payload.gaps),
-          nextStep: payload.nextStep || payload.next_step || "",
-        };
+      function element(tag, className, copy) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (copy != null) node.textContent = copy;
+        return node;
       }
 
-      function normalizeSource(source) {
-        if (!source) return { label: "Connected sources", status: "Source results used" };
-        if (typeof source === "string") return { label: source, status: "Source results used" };
-        return source;
+      function setIcon(node, name) {
+        node.innerHTML = icons[name] || "";
+        return node;
       }
 
-      function accountUrl(row) {
-        return pick(row, "accountUrl", "account_url", "accountRecordUrl", "account_record_url", "accountSourceUrl", "account_source_url", "sourceUrl", "source_url", "recordUrl", "record_url", "url", "Url", "link", "Link", "account.url", "Account.url");
+      function initials(name) {
+        return text(name, "?")
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase();
       }
 
-      function normalizeWorkNow(row, index) {
-        return {
-          rank: pick(row, "rank", "Rank") || index + 1,
-          account: pick(row, "account", "Account", "name", "Name"),
-          accountUrl: accountUrl(row),
-          motion: pick(row, "motion", "Motion"),
-          whyNow: pick(row, "whyNow", "why_now", "Why Now", "Reason"),
-          crmNextStep: pick(row, "crmNextStep", "crm_next_step", "CRM Next Step", "nextStepFromCrm", "next_step_from_crm"),
-          closeDate: pick(row, "closeDate", "close_date", "Close Date", "dueDate", "due_date", "Due Date"),
-          urgency: pick(row, "urgency", "Urgency", "timing", "Timing"),
-          stageForecast: pick(row, "stageForecast", "stage_forecast", "Stage / Forecast", "stage", "Stage"),
-          lastInteraction: pick(row, "lastInteraction", "last_interaction", "Last Interaction", "lastActivity", "last_activity"),
-          primaryContact: pick(row, "primaryContact", "primary_contact", "Primary Contact"),
-          secondaryContact: pick(row, "secondaryContact", "secondary_contact", "Secondary Contact") || "None",
-          oppRecommendation: pick(row, "oppRecommendation", "opp_recommendation", "Opp Recommendation"),
-          nextStep: pick(row, "nextStep", "next_step", "suggestedNextStep", "suggested_next_step", "Suggested Next Step", "Next Step"),
-          crmCleanup: pick(row, "crmCleanup", "crm_cleanup", "Suggested CRM Cleanup", "cleanup", "Cleanup"),
-          sequenceAngle: pick(row, "sequenceAngle", "sequence_angle", "Sequence Angle"),
-          confidence: pick(row, "confidence", "Confidence"),
-          status: pick(row, "status", "Status") || "ready_now",
-        };
+      function logoColor(name) {
+        const palette = ["#68d6a7", "#55b8e8", "#a78bfa", "#f29a71", "#e56d9e", "#d7b75b"];
+        const hash = Array.from(text(name, "account")).reduce((sum, character) => sum + character.charCodeAt(0), 0);
+        return palette[hash % palette.length];
       }
 
-      function normalizeMonitor(row) {
-        return {
-          account: pick(row, "account", "Account", "name", "Name"),
-          accountUrl: accountUrl(row),
-          motion: pick(row, "motion", "Motion"),
-          reasonToMonitor: pick(row, "reasonToMonitor", "reason_to_monitor", "Reason To Monitor", "Reason"),
-          triggerToRevisit: pick(row, "triggerToRevisit", "trigger_to_revisit", "Trigger To Revisit", "Trigger"),
-          crmCleanup: pick(row, "crmCleanup", "crm_cleanup", "Suggested CRM Cleanup", "cleanup", "Cleanup"),
-          status: pick(row, "status", "Status") || "monitor",
-        };
+      function rowKey(row, index) {
+        return `${state.tab}:${text(row.account)}:${row.rank || index + 1}`;
       }
 
-      function normalizeSuppress(row) {
-        return {
-          account: pick(row, "account", "Account", "name", "Name"),
-          accountUrl: accountUrl(row),
-          motion: pick(row, "motion", "Motion"),
-          suppressorOrBlocker: pick(row, "suppressorOrBlocker", "suppressor_or_blocker", "Suppressor Or Blocker", "Blocker"),
-          evidence: pick(row, "evidence", "Evidence"),
-          crmCleanup: pick(row, "crmCleanup", "crm_cleanup", "Suggested CRM Cleanup", "cleanup", "Cleanup"),
-          status: pick(row, "status", "Status") || "suppressed",
-        };
-      }
-
-      function pick(record, ...keys) {
-        for (const key of keys) {
-          const value = key.split(".").reduce((current, part) => current?.[part], record);
-          if (value !== undefined && value !== null && String(value).trim() !== "") return value;
-        }
-        return "";
-      }
-
-      function array(value) {
-        return Array.isArray(value) ? value : value ? [value] : [];
-      }
-
-      function text(value) {
-        if (value === null || value === undefined || value === "") return "";
-        if (typeof value === "object") {
-          const name = pick(value, "name", "Name");
-          const title = pick(value, "title", "Title", "role", "Role");
-          const email = pick(value, "email", "Email");
-          return [name, title, email].filter(Boolean).join(" - ") || JSON.stringify(value);
-        }
-        return String(value);
-      }
-
-      function esc(value) {
-        return humanizeDates(text(value)).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
-      }
-
-      function humanizeDates(value) {
-        return String(value).replace(/\b(\d{4})-(\d{2})-(\d{2})(?:[T ][0-9:.]+(?:Z|[+-]\d{2}:?\d{2})?)?\b/g, (_, year, month, day) => humanDate(year, month, day));
-      }
-
-      function humanDate(year, month, day) {
-        const numericYear = Number(year);
-        const date = new Date(Date.UTC(numericYear, Number(month) - 1, Number(day)));
-        if (Number.isNaN(date.valueOf())) return [year, month, day].join("-");
-        const options = { month: "short", day: "numeric", timeZone: "UTC" };
-        if (numericYear !== new Date().getFullYear()) options.year = "numeric";
-        return new Intl.DateTimeFormat(undefined, options).format(date);
-      }
-
-      function safeUrl(value) {
-        const url = String(value || "").trim();
-        return /^https?:\/\//i.test(url) ? url : "";
-      }
-
-      function linkedText(label, url, className = "") {
-        const href = safeUrl(url);
-        const classAttr = className ? ` class="${esc(className)}"` : "";
-        return href
-          ? `<a${classAttr} href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`
-          : `<span${classAttr}>${esc(label)}</span>`;
-      }
-
-      function statusTone(status) {
-        const normalized = String(status || "").toLowerCase().replace(/[^a-z]+/g, "-");
-        if (["high", "ready-now", "ready"].includes(normalized)) return "high";
-        if (["medium", "partial", "monitor", "watch"].includes(normalized)) return "medium";
-        if (["low", "blocked", "suppressed"].includes(normalized)) return "low";
-        return normalized || "info";
-      }
-
-      function matches(row) {
-        const haystack = searchableText(row).toLowerCase();
-        const queryMatch = !state.q || haystack.includes(state.q.toLowerCase());
-        return queryMatch;
-      }
-
-      function searchableText(row) {
-        return text(row.account);
-      }
-
-      function renderMetric(label, value) {
-        return `<div class="metric"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
-      }
-
-      function renderRunDetails(counts) {
-        const scope = data.scope || {};
-        const fields = [
-          ["Source of truth", pick(scope, "sourceOfTruth", "source_of_truth", "sourceScope", "source_scope")],
-          ["Sources checked", array(pick(scope, "sourcesChecked", "sources_checked", "evidenceLanes", "evidence_lanes")).join(", ") || pick(scope, "evidence", "sources")],
-          ["Last updated", dateText(data.generatedAt)],
-          ["Account set", pick(scope, "accountSet", "account_set")],
-          ["Ranking basis", pick(scope, "rankingBasis", "ranking_basis")],
-          ["Assumptions", pick(scope, "assumptions")],
-        ];
-        return `
-          <section class="meta-section" id="run-details">
-            <div class="meta-title">Source & Run Details</div>
-            <div class="meta-grid">
-              ${fields.map(([label, value]) => `<div class="meta-item"><span>${esc(label)}</span><strong>${esc(value || "Not available")}</strong></div>`).join("")}
-            </div>
-          </section>
-        `;
-      }
-
-      function activeScenario() {
-        return scenarios.find(([key]) => key === state.scenario) || scenarios[0];
-      }
-
-      function renderScenarioBar() {
-        const [, , description] = activeScenario();
-        return `
-          <section class="scenario-panel" aria-label="Prioritization scenario">
-            <div class="scenario-options" role="group" aria-label="Choose prioritization scenario">
-              ${scenarios.map(([key, label]) => `
-                <button class="scenario-button ${key === state.scenario ? "is-active" : ""}" type="button" data-scenario="${esc(key)}" aria-pressed="${key === state.scenario ? "true" : "false"}">${esc(label)}</button>
-              `).join("")}
-            </div>
-            <div class="scenario-note">${esc(description)}</div>
-          </section>
-        `;
-      }
-
-      function scenarioRows(rows) {
-        return rows
-          .map((row, index) => ({ row, index, score: scenarioScore(row) }))
-          .sort((a, b) => (b.score - a.score) || (a.index - b.index))
-          .map(({ row }, index) => ({ ...row, rank: index + 1 }));
-      }
-
-      function scenarioScore(row) {
-        if (state.scenario === "balanced" || state.scenario === "deal-value") return Number.MAX_SAFE_INTEGER - Number(row.rank || 0);
-        const body = [
+      function searchableCopy(row) {
+        return [
           row.account,
           row.motion,
-          row.whyNow,
-          row.closeDate,
-          row.urgency,
-          row.stageForecast,
-          row.lastInteraction,
-          row.oppRecommendation,
-          row.nextStep,
-          row.reasonToMonitor,
-          row.triggerToRevisit,
-          row.suppressorOrBlocker,
-          row.evidence,
-          row.crmCleanup,
-        ].map(text).join(" ").toLowerCase();
-        const weights = {
-          "close-soon": [
-            [/overdue|past target|close date|due soon|near-term|this month|recent meeting|recent customer|active recently/g, 4],
-            [/mutual action|confirm|validate|close plan|signer|decision/g, 2],
-            [/no recent|missing|stale|blank/g, -1],
-          ],
-          "expansion": [
-            [/expansion|renewal|existing|customer|strategic|highest-value|high-value|commit|co-sell|aws|partner|multi-product|deployment|recent meeting|momentum/g, 4],
-            [/\$|value|acv|renewal value|commercial path/g, 2],
-            [/0%|omitted|stale 2024|small/g, -3],
-          ],
-        };
-        return (weights[state.scenario] || []).reduce((score, [pattern, weight]) => {
-          const matches = body.match(pattern);
-          return score + (matches ? matches.length * weight : 0);
-        }, 0);
+          row.stage,
+          row.value,
+          row.whyItMatters,
+          row.nextAction,
+          row.owner,
+          row.dueDate,
+          row.confidence,
+          row.status
+        ]
+          .map((value) => text(value, ""))
+          .join(" ")
+          .toLocaleLowerCase();
       }
 
-      function renderWorkNow() {
-        const rows = scenarioRows(data.workNow.filter(matches));
-        return renderSection(
-          "Suggested Focus",
-          rows.length,
-          workColumns(rows),
-          rows,
-          renderWorkCard,
-          "No suggested focus accounts match the current filter.",
-          renderScenarioBar(),
-        );
+      function filteredRows() {
+        const rows = groups[state.tab];
+        const query = state.query.trim().toLocaleLowerCase();
+        return query ? rows.filter((row) => searchableCopy(row).includes(query)) : rows;
       }
 
-      function renderMonitor() {
-        const rows = scenarioRows(data.monitor.filter(matches));
-        const columns = [
-          ["Account", "account", "col-account"],
-          ["Reason To Monitor", "reasonToMonitor", "col-why"],
-          ["Trigger To Revisit", "triggerToRevisit", "col-next"],
-          ...cleanupColumn(rows),
-        ];
-        return renderSection(
-          "Monitor",
-          rows.length,
-          columns,
-          rows,
-          renderMonitorCard,
-          "No monitor accounts.",
-        );
+      function renderTabs() {
+        tabs.replaceChildren();
+        tabConfig.forEach(({ key, label }) => {
+          const button = element("button", "", label);
+          button.type = "button";
+          button.id = `tab-${key}`;
+          button.setAttribute("role", "tab");
+          button.setAttribute("aria-selected", String(state.tab === key));
+          button.setAttribute("aria-controls", "account-list");
+          button.tabIndex = state.tab === key ? 0 : -1;
+
+          const badge = element("span", "tab-count", String(groups[key].length));
+          button.appendChild(badge);
+          button.addEventListener("click", () => {
+            state.tab = key;
+            closeDrawer();
+            render();
+          });
+          button.addEventListener("keydown", (event) => {
+            const currentIndex = tabConfig.findIndex((tab) => tab.key === key);
+            const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            if (!direction) return;
+            event.preventDefault();
+            const next = tabConfig[(currentIndex + direction + tabConfig.length) % tabConfig.length];
+            state.tab = next.key;
+            render();
+            document.getElementById(`tab-${next.key}`)?.focus();
+          });
+          tabs.appendChild(button);
+        });
       }
 
-      function renderSuppress() {
-        const rows = scenarioRows(data.suppressOrBlock.filter(matches));
-        const columns = [
-          ["Account", "account", "col-account"],
-          ["Suppressor Or Blocker", "suppressorOrBlocker", "col-why"],
-          ["Evidence", "evidence", "col-evidence"],
-          ...cleanupColumn(rows),
-        ];
-        return renderSection(
-          "Suppress Or Block",
-          rows.length,
-          columns,
-          rows,
-          renderSuppressCard,
-          "No suppressed or blocked accounts.",
-        );
+      function makeAccountRow(row, index) {
+        const key = rowKey(row, index);
+        const article = element("article", "account-row");
+        article.classList.toggle("is-complete", state.complete.has(key));
+
+        article.appendChild(element("div", "rank", String(row.rank || index + 1)));
+
+        const accountCell = element("div", "account-cell");
+        const logo = element("div", "company-logo", initials(row.account));
+        logo.style.setProperty("--logo-accent", logoColor(row.account));
+        logo.setAttribute("aria-hidden", "true");
+
+        const accountCopy = element("div", "account-copy");
+        accountCopy.appendChild(element("h2", "", text(row.account)));
+        accountCopy.appendChild(element("p", "", `${text(row.motion)} · ${text(row.stage)}`));
+        accountCopy.appendChild(element("span", "", `${text(row.confidence)} confidence`));
+        accountCell.append(logo, accountCopy);
+        article.appendChild(accountCell);
+
+        const why = element("div", "why-cell");
+        why.appendChild(element("strong", "", text(row.value, "Value unavailable")));
+        why.appendChild(element("p", "", text(row.whyItMatters)));
+        article.appendChild(why);
+
+        const action = element("div", "action-cell");
+        const complete = setIcon(element("button", "complete-button"), state.complete.has(key) ? "check" : "arrow");
+        complete.type = "button";
+        complete.setAttribute("aria-label", `${state.complete.has(key) ? "Reopen" : "Complete"} ${text(row.account)} action`);
+        complete.setAttribute("aria-pressed", String(state.complete.has(key)));
+        complete.addEventListener("click", () => {
+          if (state.complete.has(key)) state.complete.delete(key);
+          else state.complete.add(key);
+          render();
+        });
+
+        const actionCopy = element("button", "action-copy", text(row.nextAction));
+        actionCopy.type = "button";
+        actionCopy.addEventListener("click", () => openDrawer(row));
+        action.append(complete, actionCopy);
+        article.appendChild(action);
+
+        const owner = element("div", "owner-cell");
+        const ownerLine = element("span");
+        setIcon(ownerLine, "user");
+        ownerLine.appendChild(element("span", "", text(row.owner, "Unassigned")));
+        const dueLine = element("span");
+        setIcon(dueLine, "calendar");
+        dueLine.appendChild(element("span", "", `Due ${text(row.dueDate, "not set")}`));
+        owner.append(ownerLine, dueLine);
+        article.appendChild(owner);
+
+        const open = setIcon(element("button", "open-row"), "arrow");
+        open.type = "button";
+        open.setAttribute("aria-label", `Open ${text(row.account)} details`);
+        open.addEventListener("click", () => openDrawer(row));
+        article.appendChild(open);
+
+        return article;
       }
 
-      function workColumns(rows) {
-        return [
-          ["Priority", "rank", "col-rank"],
-          ["Account", "account", "col-account"],
-          ["Timing", "closeDate", "col-date"],
-          ["Why", "whyNow", "col-why"],
-          ["Suggested Next Step", "nextStep", "col-next"],
-          ...cleanupColumn(rows),
-          ["Confidence", "confidence", "col-confidence"],
-        ];
+      function renderRows() {
+        const rows = filteredRows();
+        list.replaceChildren();
+        rows.forEach((row, index) => list.appendChild(makeAccountRow(row, index)));
+
+        if (!rows.length) {
+          const empty = element("div", "empty-state");
+          setIcon(empty, "search");
+          empty.appendChild(element("h2", "", state.query ? "No matching accounts" : "Nothing in this view"));
+          empty.appendChild(
+            element(
+              "p",
+              "",
+              state.query
+                ? "Try a different account, owner, stage, or action."
+                : "Accounts will appear here when they match this priority status."
+            )
+          );
+          list.appendChild(empty);
+        }
+
+        const label = tabConfig.find(({ key }) => key === state.tab)?.label.toLocaleLowerCase() || "this view";
+        count.textContent = `Showing ${rows.length} of ${groups[state.tab].length} accounts in ${label}`;
       }
 
-      function cleanupColumn(rows) {
-        return rows.some((row) => text(row.crmCleanup)) ? [["Suggested CRM Cleanup", "crmCleanup", "col-cleanup"]] : [];
+      function appendDrawerSection(label, value, emphasize = false) {
+        const section = element("section", "drawer-section");
+        section.appendChild(element("span", "", label));
+        section.appendChild(element(emphasize ? "strong" : "p", "", text(value)));
+        drawer.appendChild(section);
       }
 
-      function renderSection(title, count, columns, rows, cardRenderer, emptyText, headerContent = "") {
-        const sectionId = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-        return `
-          <section class="section" data-section="${esc(title)}">
-            <div class="section-header">
-              <div class="section-title"><h2>${esc(title)}${count ? ` (${count})` : ""}</h2></div>
-              ${headerContent}
-            </div>
-            ${
-              rows.length
-                ? `<div class="table-wrap"><table class="table-${esc(sectionId)}">
-                    <thead><tr>${columns.map(([label, , className]) => `<th class="${className || ""}">${esc(label)}</th>`).join("")}</tr></thead>
-                    <tbody>${rows.map((row) => renderRow(columns, row)).join("")}</tbody>
-                  </table></div>
-                  <div class="cards">${rows.map(cardRenderer).join("")}</div>`
-                : `<div class="empty">${esc(emptyText)}</div>`
-            }
-          </section>
-        `;
+      function safeAccountUrl(value) {
+        try {
+          const url = new URL(value);
+          return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+        } catch {
+          return "";
+        }
       }
 
-      function renderRow(columns, row) {
-        return `<tr>${columns
-          .map(([, key]) => {
-            const value = row[key];
-            if (key === "account") return `<td>${linkedText(value, row.accountUrl, "account-link")}</td>`;
-            if (key === "status") return `<td><span class="status-text ${statusTone(value)}">${esc(statusLabel(value))}</span></td>`;
-            if (key === "confidence") return `<td><span class="status-text ${statusTone(value)}">${esc(value)}</span></td>`;
-            return `<td>${esc(value)}</td>`;
-          })
-          .join("")}</tr>`;
+      function openDrawer(row) {
+        state.selected = row;
+        drawer.replaceChildren();
+
+        const close = setIcon(element("button", "drawer-close"), "close");
+        close.type = "button";
+        close.setAttribute("aria-label", "Close account details");
+        close.addEventListener("click", closeDrawer);
+        drawer.appendChild(close);
+
+        const logo = element("div", "company-logo drawer-logo", initials(row.account));
+        logo.style.setProperty("--logo-accent", logoColor(row.account));
+        logo.setAttribute("aria-hidden", "true");
+        drawer.appendChild(logo);
+        drawer.appendChild(element("p", "eyebrow", tabConfig.find(({ key }) => key === state.tab)?.label || "Sales focus"));
+
+        const title = element("h2", "", text(row.account));
+        title.id = "drawer-title";
+        drawer.appendChild(title);
+        drawer.appendChild(element("p", "drawer-meta", `${text(row.motion)} · ${text(row.stage)} · ${text(row.confidence)} confidence`));
+
+        appendDrawerSection("Opportunity value", row.value, true);
+        appendDrawerSection("Why it matters", row.whyItMatters);
+
+        if (row.primaryContact) appendDrawerSection("Primary contact", row.primaryContact);
+        if (row.evidence) appendDrawerSection("Evidence", row.evidence);
+
+        const action = element("section", "drawer-action");
+        action.appendChild(element("span", "", "Next action"));
+        action.appendChild(element("p", "", text(row.nextAction)));
+
+        const accountUrl = safeAccountUrl(row.accountUrl);
+        if (accountUrl) {
+          const link = element("a", "drawer-link", "Open account record");
+          link.href = accountUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          setIcon(link, "external");
+          link.appendChild(document.createTextNode("Open account record"));
+          action.appendChild(link);
+        }
+        drawer.appendChild(action);
+
+        backdrop.hidden = false;
+        document.body.style.overflow = "hidden";
+        close.focus();
       }
 
-      function renderCard(title, rows, status, titleUrl = "", meta = [], note = "") {
-        const metaText = meta.filter(([, value]) => value).map(([label, value]) => `${label}: ${value}`).join(" · ");
-        return `
-          <article class="card">
-            <div class="card-top">
-              <div class="card-title">
-                <strong>${linkedText(title, titleUrl, "account-link")}</strong>
-                ${metaText ? `<div class="card-meta">${esc(metaText)}</div>` : ""}
-              </div>
-            </div>
-            <div class="card-grid">
-              ${rows.map(([label, value]) => `<div class="card-field ${/cleanup/i.test(label) ? "is-cleanup" : ""}"><span>${esc(label)}</span><div class="card-value">${esc(value)}</div></div>`).join("")}
-            </div>
-            ${note ? `<div class="card-note">${esc(note)}</div>` : ""}
-          </article>
-        `;
+      function closeDrawer() {
+        state.selected = null;
+        backdrop.hidden = true;
+        document.body.style.overflow = "";
       }
 
-      function renderWorkCard(row) {
-        return renderCard(`#${row.rank} ${row.account}`, [
-          ["Why", row.whyNow],
-          ["Suggested Next Step", row.nextStep],
-          ...(row.crmCleanup ? [["Suggested CRM Cleanup", row.crmCleanup]] : []),
-        ], row.status, row.accountUrl, [
-          ["Timing", row.closeDate],
-          ["Stage", row.stageForecast],
-          ["Confidence", row.confidence],
-        ], [row.urgency, row.lastInteraction].filter(Boolean).join(" "));
+      function appendRunDetail(label, value) {
+        const detail = element("div", "run-detail");
+        detail.appendChild(element("span", "", label));
+        detail.appendChild(element("strong", "", text(value)));
+        document.getElementById("run-details-content").appendChild(detail);
       }
 
-      function statusLabel(status) {
-        const normalized = String(status || "").toLowerCase().replace(/[^a-z]+/g, "-");
-        const labels = {
-          "ready-now": "Ready",
-          "ready": "Ready",
-          "partial": "Needs cleanup",
-          "monitor": "Monitor",
-          "suppressed": "Suppressed",
-          "blocked": "Blocked",
-        };
-        return labels[normalized] || text(status);
-      }
+      function renderRunDetails() {
+        const container = document.getElementById("run-details-content");
+        container.replaceChildren();
+        const scope = payload.scope && typeof payload.scope === "object" ? payload.scope : {};
+        appendRunDetail("Account set", scope.accountSet);
+        appendRunDetail("Ranking basis", scope.rankingBasis);
+        appendRunDetail("Source of truth", scope.sourceOfTruth || payload.source?.label);
+        appendRunDetail("Sources checked", Array.isArray(scope.sourcesChecked) ? scope.sourcesChecked.join(", ") : scope.sourcesChecked);
 
-      function renderMonitorCard(row) {
-        return renderCard(row.account, [
-          ["Reason To Monitor", row.reasonToMonitor],
-          ["Trigger To Revisit", row.triggerToRevisit],
-          ...(row.crmCleanup ? [["Suggested CRM Cleanup", row.crmCleanup]] : []),
-        ], row.status, row.accountUrl);
-      }
-
-      function renderSuppressCard(row) {
-        return renderCard(row.account, [
-          ["Suppressor Or Blocker", row.suppressorOrBlocker],
-          ["Evidence", row.evidence],
-          ...(row.crmCleanup ? [["Suggested CRM Cleanup", row.crmCleanup]] : []),
-        ], row.status, row.accountUrl);
-      }
-
-      function renderGaps() {
-        const gaps = data.evidenceGaps.map(text).filter(Boolean);
-        return `
-          <section class="section">
-            <div class="section-header">
-              <div class="section-title"><h2>Evidence Gaps</h2></div>
-            </div>
-            ${gaps.length ? `<div class="gaps">${gaps.map((gap) => `<div class="gap"><span class="dot"></span><span>${esc(gap)}</span></div>`).join("")}</div>` : `<div class="empty">No material evidence gaps called out.</div>`}
-          </section>
-        `;
-      }
-
-      function dateText(value) {
-        const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
-        return match ? humanDate(match[1], match[2], match[3]) : humanizeDates(value || "");
+        if (Array.isArray(payload.evidenceGaps) && payload.evidenceGaps.length) {
+          const gaps = element("ul", "evidence-gaps");
+          payload.evidenceGaps.forEach((gap) => gaps.appendChild(element("li", "", text(gap))));
+          container.appendChild(gaps);
+        }
       }
 
       function render() {
-        const app = document.getElementById("app");
-        app.innerHTML = `
-          <div class="shell">
-            <header class="topbar">
-              <div class="brand">
-                <div class="brand-mark">S</div>
-                <div class="brand-text"><strong>Prioritize Accounts</strong></div>
-              </div>
-              <div class="controls">
-                <input class="control search" id="q" placeholder="Search" value="${esc(state.q)}" />
-              </div>
-            </header>
-            <main class="main" id="results"></main>
-          </div>
-        `;
-        renderResults();
+        renderTabs();
+        renderRows();
+        renderRunDetails();
       }
 
-      function renderResults() {
-        const results = document.getElementById("results");
-        if (!results) return;
-        const visibleWorkNow = data.workNow.filter(matches).length;
-        const visibleMonitor = data.monitor.filter(matches).length;
-        const visibleSuppress = data.suppressOrBlock.filter(matches).length;
-        results.innerHTML = `
-          ${renderWorkNow()}
-          ${renderMonitor()}
-          ${renderSuppress()}
-          ${renderGaps()}
-          ${renderRunDetails({ workNow: visibleWorkNow, monitor: visibleMonitor, suppress: visibleSuppress })}
-        `;
-      }
-
-      document.addEventListener("input", (event) => {
-        if (event.target.id === "q") {
-          state.q = event.target.value;
-          renderResults();
-        }
+      search.addEventListener("input", () => {
+        state.query = search.value;
+        searchClear.hidden = !state.query;
+        renderRows();
       });
 
-      document.addEventListener("click", (event) => {
-        const button = event.target.closest("[data-scenario]");
-        if (!button) return;
-        state.scenario = button.getAttribute("data-scenario") || "balanced";
-        renderResults();
+      searchClear.addEventListener("click", () => {
+        search.value = "";
+        state.query = "";
+        searchClear.hidden = true;
+        renderRows();
+        search.focus();
       });
+
+      backdrop.addEventListener("click", (event) => {
+        if (event.target === backdrop) closeDrawer();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !backdrop.hidden) closeDrawer();
+      });
+
+      document.getElementById("page-title").textContent = text(payload.title, "Account priorities");
+      document.getElementById("sync-copy").textContent = text(payload.source?.status, "Connected sources used");
+      document.getElementById("avatar").textContent = text(payload.viewerInitials, "SF").slice(0, 3).toUpperCase();
+      document.title = `${text(payload.title, "Account priorities")} — Sales Focus`;
 
       render();
     </script>

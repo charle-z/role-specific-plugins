@@ -35,14 +35,9 @@ Typography for presentation artifacts:
 
 Color and palette for presentation artifacts:
 
-- use near-black or dark navy text
-- use a very light neutral background
-- use corporate darks around `#000944` and `#00264F`
-- use restrained corporate blues around `#3D8DFF`, `#6DCBF4`, and `#D0EDFA`
-- use status accents only when useful:
-  - positive `#85DF7B`
-  - caution `#F7CB59`
-  - negative `#F67576`
+- use the user's supplied brand conventions when available;
+- otherwise use near-black or dark navy text, a very light neutral background, and restrained neutral or blue accents;
+- use status accents only when they clarify meaning, not as decoration.
 
 Color rules:
 
@@ -182,7 +177,7 @@ Default output rules:
 - keep the package decision-useful
 - keep prioritization explicit
 - label `Known`, `Inferred`, `Assumed`, and `Missing` when evidence is mixed
-- use public research by default for named companies
+- use focused public research by default for named public companies when it sharpens why-now context
 - do not claim precision you cannot support
 
 ## Example prompts to include when building and testing the skill
@@ -201,7 +196,7 @@ Use these prompts when evaluating whether the skill is behaving in a customer-le
 
 Acceptance checks:
 
-- public research is included by default for named public companies
+- focused public research is included by default for named public companies when it materially sharpens the case
 - the output improves strategic-priority framing and "why now" logic
 - the output does not invent internal baselines or buyer certainty from public materials
 - public evidence is clearly separated from account-native proof

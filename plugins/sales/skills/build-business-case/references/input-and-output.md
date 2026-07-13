@@ -11,8 +11,8 @@ Typical inputs may include:
 - account notes
 - discovery call transcript
 - customer metrics
-- `crm` summary
-- `meeting_notes` transcript
+- ~~CRM summary
+- ~~Meeting Transcripts transcript
 - product usage data
 - customer website
 - 10-K, annual report, or investor presentation
@@ -37,9 +37,9 @@ Useful selectors and hints may include:
 
 Default behavior:
 
-- default `public_research` to `true`
+- default `public_research` to `true` for named public companies when it can sharpen why-now context
 - default `output_mode` to `default_package`
-- if `company_name` is present, run a public research pass by default
+- if a named public company is present, run a focused public research pass by default unless the account-native anchor already answers the material why-now question
 - if the user explicitly disables public research, skip it
 - if no named company is present, do not force public research
 - if public sources are unavailable, thin, or low-signal, continue with internal evidence and label the gap
@@ -64,10 +64,10 @@ Input handling rules:
 
 ## Internal account-scoped evidence order
 
-- Attempt `crm` account resolution, account history, opportunity context, and activity review first when the request is tied to a named account.
-- Use `document_store` for account plans, discovery notes, prior business cases, and narrative account context.
-- Use `meeting_notes` next for transcript-backed workflow, stakeholder, and blocker evidence.
-- Use user-provided enrichment exports or public sources only as a fallback when `crm` and `meeting_notes` evidence still leave a critical evidence gap, especially for quantification inputs.
+- Attempt ~~CRM account resolution, account history, opportunity context, and activity review first when the request is tied to a named account.
+- Use ~~Knowledge & Files for account plans, discovery notes, prior business cases, and narrative account context.
+- Use ~~Meeting Transcripts next for transcript-backed workflow, stakeholder, and blocker evidence.
+- Use user-provided enrichment exports or public sources only as a fallback when ~~CRM and ~~Meeting Transcripts evidence still leave a critical evidence gap, especially for quantification inputs.
 - Keep `Known`, `Inferred`, `Assumed`, and `Missing` labels visible whenever evidence is mixed.
 
 ## Standard outputs

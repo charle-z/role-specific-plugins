@@ -72,6 +72,12 @@ export function formatValue(value: unknown, format: ValueFormat = "compact", uni
   const numeric = asNumber(value);
   if (numeric == null) return value == null ? "n/a" : String(value);
   const cleanUnit = unit?.trim();
+  if (format === "percent" && cleanUnit === "%") {
+    return new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: 1,
+      style: "percent",
+    }).format(numeric);
+  }
   if (cleanUnit) {
     if (isPercentWordUnit(cleanUnit)) {
       return new Intl.NumberFormat(undefined, {
@@ -340,6 +346,47 @@ export function buildWaterfallRows(chart: ChartSpec, rows: ChartDataRow[]): Wate
       __waterfallValue: value,
     };
   });
+}
+
+const WATERFALL_NARROW_AXIS_RATIO = 4;
+const WATERFALL_AXIS_PADDING_RATIO = 0.12;
+
+export function getWaterfallYAxisScale(
+  rows: WaterfallDataRow[],
+): { domain: [number, number]; ticks: number[] } | undefined {
+  const points = rows
+    .flatMap((row) => [row.__waterfallStart, row.__waterfallEnd])
+    .filter((value) => Number.isFinite(value));
+  const nonZeroPoints = points.filter((value) => value !== 0);
+  if (nonZeroPoints.length < 2) return undefined;
+
+  const min = Math.min(...points, 0);
+  const max = Math.max(...points, 0);
+  const focusedMin = Math.min(...nonZeroPoints);
+  const focusedMax = Math.max(...nonZeroPoints);
+  const focusedSpan = focusedMax - focusedMin;
+  const fullSpan = max - min;
+  const sameSideOfZero = focusedMin > 0 || focusedMax < 0;
+  if (!sameSideOfZero || focusedSpan <= 0 || fullSpan / focusedSpan < WATERFALL_NARROW_AXIS_RATIO) {
+    return undefined;
+  }
+
+  const padding = Math.max(
+    focusedSpan * WATERFALL_AXIS_PADDING_RATIO,
+    niceAxisStep(focusedSpan / Math.max(1, Y_AXIS_TICK_COUNT - 1)) / 2,
+  );
+  const paddedMin = focusedMin - padding;
+  const paddedMax = focusedMax + padding;
+  const tickStep = niceAxisStep((paddedMax - paddedMin) / Math.max(1, Y_AXIS_TICK_COUNT - 1));
+  const axisMin = Math.floor(paddedMin / tickStep) * tickStep;
+  const axisMax = Math.ceil(paddedMax / tickStep) * tickStep;
+  if (!Number.isFinite(axisMin) || !Number.isFinite(axisMax) || axisMin === axisMax) return undefined;
+
+  const tickSlots = Math.max(1, Math.round((axisMax - axisMin) / tickStep));
+  return {
+    domain: [axisMin, axisMax],
+    ticks: Array.from({ length: tickSlots + 1 }, (_, index) => axisMin + tickStep * index),
+  };
 }
 
 export function buildPieRows(chart: ChartSpec, rows: ChartDataRow[]): ChartDataRow[] {

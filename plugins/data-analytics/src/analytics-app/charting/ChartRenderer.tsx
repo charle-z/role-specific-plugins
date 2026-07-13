@@ -39,6 +39,7 @@ import {
   formatValue,
   getBoxPlotXAxisScale,
   getDateAxisTicks,
+  getWaterfallYAxisScale,
   getYAxisScaleForSeries,
   type ChartDataRow,
   type WaterfallDataRow,
@@ -57,6 +58,7 @@ const AXIS_LABEL_GAP = 8;
 const RECHARTS_AXIS_TICK_SIZE = 6;
 const RECHARTS_AXIS_TICK_MARGIN = AXIS_LABEL_GAP - RECHARTS_AXIS_TICK_SIZE;
 const Y_AXIS_TICK_LABEL_OVERHANG = 8;
+const HTML_REPORT_NUMERIC_Y_AXIS_WIDTH = 96;
 const CHART_COMPACT_HEIGHT = 240;
 const CHART_CARD_DEFAULT_HEIGHT = 320;
 const CHART_CARD_ROTATED_CATEGORY_HEIGHT = 400;
@@ -81,9 +83,9 @@ const CATEGORY_X_AXIS_ROTATED_TICK_MARGIN = 10;
 const CATEGORY_X_AXIS_WRAPPED_HEIGHT = 38;
 const CATEGORY_X_AXIS_WRAPPED_HEIGHT_WITH_TITLE = 48;
 const CATEGORY_X_AXIS_WRAPPED_TICK_MARGIN = 6;
-const CATEGORY_X_AXIS_MIN_LINE_CHARACTERS = 8;
 const CATEGORY_X_AXIS_ESTIMATED_CHAR_WIDTH = 7;
 const CATEGORY_X_AXIS_LABEL_SLOT_GAP = 16;
+const CATEGORY_X_AXIS_MIN_VISIBLE_TICK_SPACING = 72;
 const BAR_AUTO_VALUE_LABEL_LIMIT = 8;
 const BAR_VALUE_LABEL_OFFSET = 8;
 const BAR_NEGATIVE_VALUE_LABEL_OFFSET = 18;
@@ -324,30 +326,32 @@ function XAxisEndpointTick({
 }
 
 function truncateCategoryAxisLabel(value: string, maxLength: number): string {
-  if (value.length <= maxLength) return value;
-  const contentLength = Math.max(1, maxLength - 3);
-  return `${value.slice(0, contentLength).trimEnd()}...`;
+  const safeMaxLength = Math.max(1, Math.floor(maxLength));
+  if (value.length <= safeMaxLength) return value;
+  if (safeMaxLength === 1) return "…";
+  return `${value.slice(0, safeMaxLength - 1).trimEnd()}…`;
+}
+
+function balancedCategoryAxisLabelSplit(value: string): [string, string] {
+  const midpoint = value.length / 2;
+  const wordBreaks = [...value.matchAll(/\s+/g)]
+    .map((match) => match.index)
+    .filter((index): index is number => index > 0 && index < value.length);
+  const splitIndex = wordBreaks.length
+    ? wordBreaks.reduce((best, index) =>
+        Math.abs(index - midpoint) < Math.abs(best - midpoint) ? index : best,
+      )
+    : Math.ceil(midpoint);
+  return [value.slice(0, splitIndex).trimEnd(), value.slice(splitIndex).trimStart()];
 }
 
 function wrapCategoryAxisLabel(value: string, maxLength: number): string[] {
   const normalized = value.trim();
-  if (!normalized || normalized.length <= maxLength) return [normalized];
-  const words = normalized.split(/\s+/);
-  if (words.length === 1) {
-    return [
-      normalized.slice(0, maxLength),
-      truncateCategoryAxisLabel(normalized.slice(maxLength), maxLength),
-    ].filter(Boolean);
-  }
-
-  let firstLine = words.shift() ?? "";
-  while (words.length && `${firstLine} ${words[0]}`.length <= maxLength) {
-    firstLine = `${firstLine} ${words.shift()}`;
-  }
-  return [
-    truncateCategoryAxisLabel(firstLine, maxLength),
-    truncateCategoryAxisLabel(words.join(" "), maxLength),
-  ].filter(Boolean);
+  const safeMaxLength = Math.max(1, Math.floor(maxLength));
+  if (!normalized || normalized.length <= safeMaxLength) return [normalized];
+  return balancedCategoryAxisLabelSplit(normalized)
+    .map((line) => truncateCategoryAxisLabel(line, safeMaxLength))
+    .filter(Boolean);
 }
 
 function WrappedCategoryXAxisTick({
@@ -357,7 +361,8 @@ function WrappedCategoryXAxisTick({
   y = 0,
 }: AxisTickProps & { maxLineLength: number }) {
   const numericX = typeof x === "number" ? x : Number(x) || 0;
-  const lines = wrapCategoryAxisLabel(String(payload?.value ?? ""), maxLineLength);
+  const value = String(payload?.value ?? "");
+  const lines = wrapCategoryAxisLabel(value, maxLineLength);
   return (
     <text
       className="recharts-cartesian-axis-tick-value"
@@ -366,6 +371,7 @@ function WrappedCategoryXAxisTick({
       x={numericX}
       y={y}
     >
+      {lines.some((line) => line.includes("…")) ? <title>{value}</title> : null}
       {lines.map((line, index) => (
         <tspan dy={index === 0 ? 0 : "1.2em"} key={`${line}-${index}`} x={numericX}>
           {line}
@@ -441,7 +447,40 @@ function shouldWrapCategoryXAxisLabels({
 
 function categoryXAxisWrappedLineLength(chart: ChartSpec, rows: ChartDataRow[], availableWidth: number): number {
   const slotWidth = categoryXAxisLabelSlotWidth(categoryXAxisLabels(chart, rows), availableWidth);
-  return Math.max(CATEGORY_X_AXIS_MIN_LINE_CHARACTERS, Math.floor(slotWidth / CATEGORY_X_AXIS_ESTIMATED_CHAR_WIDTH));
+  return Math.max(1, Math.floor(slotWidth / CATEGORY_X_AXIS_ESTIMATED_CHAR_WIDTH));
+}
+
+function sparseCategoryXAxisTicks({
+  availableWidth,
+  chart,
+  horizontal,
+  rotateCategoryXAxisLabels,
+  rows,
+  wrapCategoryXAxisLabels,
+  xAxisTicks,
+}: {
+  availableWidth: number;
+  chart: ChartSpec;
+  horizontal: boolean;
+  rotateCategoryXAxisLabels: boolean;
+  rows: ChartDataRow[];
+  wrapCategoryXAxisLabels: boolean;
+  xAxisTicks?: string[];
+}): string[] | undefined {
+  if (horizontal || xAxisTicks?.length || (!rotateCategoryXAxisLabels && !wrapCategoryXAxisLabels)) {
+    return xAxisTicks;
+  }
+  const labels = categoryXAxisLabels(chart, rows);
+  if (labels.length <= 2) return undefined;
+  const maxVisibleTicks = Math.max(2, Math.floor(availableWidth / CATEGORY_X_AXIS_MIN_VISIBLE_TICK_SPACING));
+  if (labels.length <= maxVisibleTicks) return undefined;
+
+  const lastIndex = labels.length - 1;
+  const step = Math.max(1, Math.ceil(lastIndex / Math.max(1, maxVisibleTicks - 1)));
+  const ticks = labels.filter((_, index) => index % step === 0);
+  const last = labels[lastIndex];
+  if (ticks[ticks.length - 1] !== last) ticks.push(last);
+  return ticks;
 }
 
 function getFunnelStageColor(index: number, rowCount: number): string {
@@ -862,12 +901,18 @@ function renderBarValueLabel({
   chart,
   height,
   horizontal,
+  placeNegativeHorizontalLabelsAtZeroSide = false,
   showPositiveSign = false,
   value,
   width,
   x,
   y,
-}: BarValueLabelProps & { chart: ChartSpec; horizontal: boolean; showPositiveSign?: boolean }) {
+}: BarValueLabelProps & {
+  chart: ChartSpec;
+  horizontal: boolean;
+  placeNegativeHorizontalLabelsAtZeroSide?: boolean;
+  showPositiveSign?: boolean;
+}) {
   const numericValue = asNumber(value);
   const numericX = asFiniteNumber(x, Number.NaN);
   const numericY = asFiniteNumber(y, Number.NaN);
@@ -885,12 +930,13 @@ function renderBarValueLabel({
   if (horizontal) {
     const left = Math.min(numericX, numericX + numericWidth);
     const right = Math.max(numericX, numericX + numericWidth);
+    const zeroSideNegativeLabel = isNegative && placeNegativeHorizontalLabelsAtZeroSide;
     return (
       <text
         className="chart-bar-value-label"
         dominantBaseline="middle"
-        textAnchor={isNegative ? "end" : "start"}
-        x={isNegative ? left - BAR_VALUE_LABEL_OFFSET : right + BAR_VALUE_LABEL_OFFSET}
+        textAnchor={zeroSideNegativeLabel ? "start" : isNegative ? "end" : "start"}
+        x={zeroSideNegativeLabel ? right + BAR_VALUE_LABEL_OFFSET : isNegative ? left - BAR_VALUE_LABEL_OFFSET : right + BAR_VALUE_LABEL_OFFSET}
         y={numericY + numericHeight / 2}
       >
         {label}
@@ -1131,6 +1177,7 @@ function CustomPanelFrame({
 export function ChartRenderer({
   chart: chartSpec,
   height,
+  htmlReport = false,
   onVisibleSeriesChange,
   responsive = true,
   rows: rawRows,
@@ -1141,6 +1188,7 @@ export function ChartRenderer({
 }: {
   chart: ChartSpec;
   height?: number | string;
+  htmlReport?: boolean;
   onVisibleSeriesChange?: (visible: Set<string>) => void;
   responsive?: boolean;
   rows: ChartDataRow[];
@@ -1185,6 +1233,15 @@ export function ChartRenderer({
     chart,
     horizontal,
     rows,
+    xAxisTicks,
+  });
+  const categoryXAxisTicks = sparseCategoryXAxisTicks({
+    availableWidth: fixedChartWidth,
+    chart,
+    horizontal,
+    rotateCategoryXAxisLabels,
+    rows,
+    wrapCategoryXAxisLabels,
     xAxisTicks,
   });
   const wrappedCategoryXAxisLineLength = categoryXAxisWrappedLineLength(chart, rows, fixedChartWidth);
@@ -1260,7 +1317,7 @@ export function ChartRenderer({
 
   const xAxisLabel = chart.xAxisTitle ? bottomAxisLabel(chart.xAxisTitle) : undefined;
   const yAxisLabel = chart.yAxisTitle ? leftAxisLabel(chart.yAxisTitle) : undefined;
-  const horizontalValueAxisLabel = chart.yAxisTitle ? bottomAxisLabel(chart.yAxisTitle) : undefined;
+  const horizontalValueAxisLabel = chart.xAxisTitle ? bottomAxisLabel(chart.xAxisTitle) : undefined;
   // Horizontal bars already show category names as row labels; an extra axis title competes for left-side space.
   const horizontalCategoryAxisLabel = undefined;
   const bottomMarginAxisLabel = horizontal ? horizontalValueAxisLabel : xAxisLabel;
@@ -1276,7 +1333,10 @@ export function ChartRenderer({
       horizontal && barValueLabelSides.hasNegative
         ? Math.max(baseLeftMargin, BAR_VALUE_LABEL_HORIZONTAL_GUTTER)
         : baseLeftMargin,
-    right: horizontal && barValueLabelSides.hasNonNegative ? BAR_VALUE_LABEL_HORIZONTAL_GUTTER : 0,
+    right:
+      horizontal && (barValueLabelSides.hasNonNegative || (htmlReport && barValueLabelSides.hasNegative))
+        ? BAR_VALUE_LABEL_HORIZONTAL_GUTTER
+        : 0,
     top:
       !horizontal && barValueLabelSides.hasNonNegative
         ? Math.max(Y_AXIS_TICK_LABEL_OVERHANG, BAR_VALUE_LABEL_VERTICAL_GUTTER)
@@ -1326,7 +1386,7 @@ export function ChartRenderer({
         tickMargin={RECHARTS_AXIS_TICK_MARGIN}
         tickSize={RECHARTS_AXIS_TICK_SIZE}
         ticks={yAxisScale.ticks}
-        width="auto"
+        width={htmlReport ? HTML_REPORT_NUMERIC_Y_AXIS_WIDTH : "auto"}
       />
     );
   }
@@ -1376,7 +1436,13 @@ export function ChartRenderer({
             {!isStacked ? renderCategoryBarCells(chart, series, rows, colorBarsBySign) : null}
             {showBarValueLabels ? (
               <LabelList
-                content={(props) => renderBarValueLabel({ ...props, chart, horizontal: isHorizontal, showPositiveSign: colorBarsBySign })}
+                content={(props) => renderBarValueLabel({
+                  ...props,
+                  chart,
+                  horizontal: isHorizontal,
+                  placeNegativeHorizontalLabelsAtZeroSide: htmlReport,
+                  showPositiveSign: colorBarsBySign,
+                })}
                 dataKey={series.field}
               />
             ) : null}
@@ -1432,7 +1498,7 @@ export function ChartRenderer({
           ? CATEGORY_X_AXIS_WRAPPED_HEIGHT_WITH_TITLE
           : CATEGORY_X_AXIS_WRAPPED_HEIGHT
       : undefined,
-    interval: rotateCategoryXAxisLabels || wrapCategoryXAxisLabels || xAxisTicks ? 0 : undefined,
+    interval: rotateCategoryXAxisLabels || wrapCategoryXAxisLabels || categoryXAxisTicks ? 0 : undefined,
     label: xAxisLabel,
     tick: xAxisTicks
       ? ((props: AxisTickProps) => (
@@ -1457,13 +1523,14 @@ export function ChartRenderer({
         ? CATEGORY_X_AXIS_WRAPPED_TICK_MARGIN
         : RECHARTS_AXIS_TICK_MARGIN,
     tickSize: RECHARTS_AXIS_TICK_SIZE,
-    ticks: xAxisTicks,
+    ticks: categoryXAxisTicks,
     textAnchor: rotateCategoryXAxisLabels ? "end" : undefined,
   };
 
   const boxPlotRows = chart.type === "boxPlot" ? buildBoxPlotRows(chart, rows) : [];
   const boxPlotXAxisScale = chart.type === "boxPlot" ? getBoxPlotXAxisScale(boxPlotRows) : null;
   const waterfallRows = chart.type === "waterfall" ? buildWaterfallRows(chart, rows) : [];
+  const waterfallYAxisScale = chart.type === "waterfall" ? getWaterfallYAxisScale(waterfallRows) : undefined;
   const funnelRows = chart.type === "funnel" ? buildFunnelRows(chart, rows, getFunnelStageColor) : [];
   const pieRows = chart.type === "pie"
     ? buildPieRows(chart, rows).filter((row) => chart.series.length <= 1 || visibleIds.has(String(row.__pieField ?? "")))
@@ -1493,7 +1560,7 @@ export function ChartRenderer({
       <BarChart {...chartProps} data={waterfallRows} margin={cartesianMargin}>
         <CartesianGrid vertical={false} />
         <XAxis {...xAxisProps} />
-        <YAxis axisLine={false} interval={0} label={yAxisLabel} tick={(props: AxisTickProps) => (<NumericYAxisTick {...props} valueFormat={chart.valueFormat ?? "compact"} />)} tickFormatter={(value) => formatValue(value, chart.valueFormat)} tickLine={false} tickMargin={RECHARTS_AXIS_TICK_MARGIN} tickSize={RECHARTS_AXIS_TICK_SIZE} width="auto" />
+        <YAxis axisLine={false} domain={waterfallYAxisScale?.domain} interval={0} label={yAxisLabel} tick={(props: AxisTickProps) => (<NumericYAxisTick {...props} valueFormat={chart.valueFormat ?? "compact"} />)} tickFormatter={(value) => formatValue(value, chart.valueFormat)} tickLine={false} tickMargin={RECHARTS_AXIS_TICK_MARGIN} tickSize={RECHARTS_AXIS_TICK_SIZE} ticks={waterfallYAxisScale?.ticks} width={htmlReport ? HTML_REPORT_NUMERIC_Y_AXIS_WIDTH : "auto"} />
         <ReferenceLine y={0} stroke="var(--ds-chart-reference-line)" strokeWidth={1} />
         <Tooltip {...fastTooltipProps} content={<WaterfallTooltip chart={tooltipChart} />} cursor={subtleTooltipCursor} />
         <Bar

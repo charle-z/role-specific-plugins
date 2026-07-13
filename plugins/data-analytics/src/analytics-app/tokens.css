@@ -54,7 +54,7 @@
   --ds-edit-hover-bg: rgb(232 232 232 / 20%);
   --ds-edit-active-border: var(--color-border-primary, var(--ds-text-primary));
   --ds-menu-button-border: rgba(13, 13, 13, 0.05);
-  --ds-overlay-bg: #ffffff;
+  --ds-overlay-bg: var(--color-token-dropdown-background, #ffffff);
   --ds-menu-bg: var(--ds-overlay-bg);
   --ds-menu-text: var(--color-token-dropdown-foreground, var(--color-text-foreground, var(--ds-text)));
   --ds-menu-border: var(--color-token-dropdown-border, var(--color-border, var(--ds-border-subtle)));
@@ -171,7 +171,7 @@
     --ds-neutral: var(--color-text-tertiary, #afafaf);
     --ds-edit-hover-bg: var(--color-background-primary-ghost-hover, rgb(255 255 255 / 8%));
     --ds-menu-button-border: var(--color-border-subtle, rgba(255, 255, 255, 0.05));
-    --ds-overlay-bg: var(--codex-panel, var(--color-background-primary, #212121));
+    --ds-overlay-bg: var(--color-token-dropdown-background, var(--ds-surface, #212121));
     --ds-menu-bg: var(--ds-overlay-bg);
     --ds-menu-text: var(--color-token-dropdown-foreground, var(--color-text-foreground, var(--ds-text-primary)));
     --ds-menu-border: var(--color-token-dropdown-border, var(--color-border, rgba(255, 255, 255, 0.1)));
@@ -212,7 +212,7 @@
   --ds-neutral: var(--color-text-tertiary, #afafaf);
   --ds-edit-hover-bg: var(--color-background-primary-ghost-hover, rgb(255 255 255 / 8%));
   --ds-menu-button-border: var(--color-border-subtle, rgba(255, 255, 255, 0.05));
-  --ds-overlay-bg: #212121;
+  --ds-overlay-bg: var(--color-token-dropdown-background, #212121);
   --ds-menu-bg: var(--ds-overlay-bg);
   --ds-menu-text: var(--color-token-dropdown-foreground, var(--color-text-foreground, var(--ds-text-primary)));
   --ds-menu-border: var(--color-token-dropdown-border, var(--color-border, rgba(255, 255, 255, 0.1)));

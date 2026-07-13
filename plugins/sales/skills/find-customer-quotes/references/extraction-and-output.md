@@ -23,14 +23,14 @@ Minimum fields per quote:
 - `customer_confidence` (`0.0`-`1.0`)
 - `theme_relevance` (`0.0`-`1.0`)
 - `evidence` (brief reason the speaker is likely a customer and why the quote matches the theme)
-- `transcript_url` (the call/transcript link from the `meeting_notes` fetch response)
+  - `transcript_url` (the call or transcript link from the ~~Meeting Transcripts fetch response)
 
 Strongly recommended extra fields when available:
 
 - `call_date`
 - `company`
 - `call_title`
-- `connector_file_id` (optional internal/debug field; useful for refetching with `meeting_notes`)
+- `connector_file_id` (optional internal/debug field; useful for refetching with ~~Meeting Transcripts)
 - `transcript_snippet` (short surrounding context, not a rewrite)
 
 If a theme has insufficient high-confidence quotes, return fewer quotes and include a short gap note.
@@ -46,7 +46,7 @@ Per theme, include:
 - short one-line note on coverage quality, for example, `strong spread across 8 calls`
 - quote list, each quote on its own bullet, with quote text, customer/company when available, speaker name when known, compact confidence, and a transcript link labeled `[Transcript]`
 
-For readable summaries, do not print `speaker_role_guess` unless the user explicitly asks for role metadata or a quote needs an ambiguity caveat.
+For readable summaries, do not print `speaker_role_guess` unless the user explicitly asks for role metadata or a quote needs an ambiguity caveat. Omit extra internal retrieval metadata unless the user asks.
 
 Optional footer:
 
@@ -204,7 +204,7 @@ Return structured gaps instead of failing the whole task.
 
 Examples:
 
-- no `meeting_notes` search results for theme
+- no ~~Meeting Transcripts search results for theme
 - search results exist but transcript fetch fails
 - transcript content lacks enough speaker evidence
 - enough relevant quotes found, but not enough high-confidence customer quotes
@@ -274,7 +274,7 @@ Gaps
 - sales plugin setup friction: Reviewed transcript-like evidence, but speaker context was internal/vendor-eval rather than customer/prospect.
 
 Internal / Non-Customer Evidence
-- "Salesforce needed reauthentication..." - Internal Seller (speaker_role_guess=internal_seller, customer_conf=0.05, relevance=0.90, [Transcript](https://example.com/transcript/222222222)). Usage note: Useful for an internal product brief; do not present as a customer quote.
+- "The CRM needed reauthentication..." - Internal Speaker (speaker_role_guess=internal_seller, customer_conf=0.05, relevance=0.90, [Transcript](https://example.com/transcript/222222222)). Usage note: Useful for an internal product brief; do not present as a customer quote.
 ```
 
 ## Migration note

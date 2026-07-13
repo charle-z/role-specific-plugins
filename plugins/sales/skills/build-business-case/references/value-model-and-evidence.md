@@ -135,8 +135,8 @@ When evidence conflicts or is incomplete, prioritize sources roughly in this ord
 
 1. customer-provided metrics
 2. product telemetry or usage data
-3. discovery notes or `meeting_notes`
-4. `crm`, `document_store`, or internal account notes
+3. discovery notes or ~~Meeting Transcripts
+4. ~~CRM, ~~Knowledge & Files, or internal account notes
 5. public filings, earnings materials, website, investor materials, and recent material company news
 6. analogous wins or directional benchmarks
 

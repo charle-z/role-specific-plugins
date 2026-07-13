@@ -26,22 +26,35 @@ const fallbackPayload = {
   manifest: {
     version: 1,
     surface: "report",
-    title: "Core Business Metrics Trend Readout",
-    description: "Fallback report payload for local widget development.",
-    generatedAt: "2026-05-08T00:00:00Z",
+    title: "Weekly Revenue Performance",
+    description: "Local regression showcase for metric cards, chart tooltips, and responsive tables.",
+    generatedAt: "2026-07-08T00:00:00Z",
     blocks: [
+      {
+        id: "report_title",
+        type: "markdown",
+        layout: "full",
+        body: "# Weekly Revenue Performance",
+      },
       {
         id: "summary_text",
         type: "markdown",
         layout: "full",
         body:
-          "## Executive Summary\n\nThis fallback verifies that MCP artifact payloads render with the full report app shell.",
+          "## Executive Summary\n\nNet revenue reached **$1.05M** in the latest week, **3.8% above** the prior week and **4.8% above target**. Orders also reached a period high while refund rate stayed within its recent range.",
       },
       {
         id: "revenue_metrics",
         type: "metric-strip",
         layout: "full",
-        cardIds: ["revenue_card"],
+        cardIds: ["net_revenue_card", "target_attainment_card", "refund_rate_card", "completed_orders_card"],
+      },
+      {
+        id: "trend_context",
+        type: "markdown",
+        layout: "full",
+        body:
+          "## Revenue stayed ahead of plan\n\nThe latest week extended the upward trend and preserved a positive gap to target. The chart separates actual revenue from the weekly plan so the comparison remains explicit.",
       },
       {
         id: "revenue_chart_block",
@@ -50,32 +63,84 @@ const fallbackPayload = {
         chartId: "revenue_chart",
       },
       {
-        id: "revenue_table_block",
+        id: "summary_table_context",
+        type: "markdown",
+        layout: "full",
+        body:
+          "## Weekly summary\n\nThis compact table intentionally has fewer columns than the report viewport. It should stretch to the available width instead of ending at its intrinsic content width.",
+      },
+      {
+        id: "revenue_summary_table_block",
         type: "table",
         layout: "full",
-        tableId: "revenue_table",
+        tableId: "revenue_summary_table",
+      },
+      {
+        id: "detail_table_context",
+        type: "markdown",
+        layout: "full",
+        body:
+          "## Weekly audit detail\n\nThe detailed table keeps every reconciliation field. On narrower screens it should preserve readable columns and use contained horizontal scrolling.",
+      },
+      {
+        id: "revenue_detail_table_block",
+        type: "table",
+        layout: "full",
+        tableId: "revenue_detail_table",
       },
     ],
     cards: [
       {
-        id: "revenue_card",
-        dataset: "weekly_revenue",
+        id: "net_revenue_card",
+        description: "Settled revenue after discounts and refunds for the week starting June 29, 2026.",
+        dataset: "latest_week",
+        sourceId: "snapshot",
         metrics: [
-          { label: "Revenue", field: "revenue_m", format: "currency" },
-          { label: "WoW", field: "wow", format: "percent", signed: true },
+          { label: "Net revenue · latest week", field: "net_revenue", format: "currency" },
+          { label: "WoW", field: "revenue_wow", format: "percent", signed: true },
+        ],
+      },
+      {
+        id: "target_attainment_card",
+        description: "Net revenue divided by the approved weekly target; the chip shows the dollar variance to that same target.",
+        dataset: "latest_week",
+        sourceId: "snapshot",
+        metrics: [
+          { label: "Target attainment", field: "attainment", format: "percent" },
+          { label: "Variance", field: "variance", format: "currency", signed: true },
+        ],
+      },
+      {
+        id: "refund_rate_card",
+        description: "Settled refund dollars divided by gross billings for the latest week.",
+        dataset: "latest_week",
+        sourceId: "snapshot",
+        metrics: [
+          { label: "Refund rate", field: "refund_rate", format: "percent" },
+        ],
+      },
+      {
+        id: "completed_orders_card",
+        description: "Orders completed during the latest reporting week; the chip compares the same measure with the prior week.",
+        dataset: "latest_week",
+        sourceId: "snapshot",
+        metrics: [
+          { label: "Completed orders", field: "orders", format: "number" },
+          { label: "WoW", field: "orders_wow", format: "percent", signed: true },
         ],
       },
     ],
     charts: [
       {
         id: "revenue_chart",
-        title: "Revenue Trend",
+        title: "Net revenue vs target",
+        subtitle: "Weekly net revenue remained above plan throughout the period",
         type: "line",
         dataset: "weekly_revenue_trend",
         sourceId: "snapshot",
         encodings: {
-          x: { field: "week", type: "ordinal" },
-          y: { field: "revenue_m", type: "quantitative", label: "Revenue", format: "currency" },
+          x: { field: "week", type: "temporal" },
+          y: { field: "revenue", type: "quantitative", label: "Revenue", format: "currency" },
           color: { field: "series", type: "nominal" },
         },
         valueFormat: "currency",
@@ -84,41 +149,98 @@ const fallbackPayload = {
     ],
     tables: [
       {
-        id: "revenue_table",
-        title: "Revenue Segment Detail",
-        dataset: "revenue_segment_detail",
+        id: "revenue_summary_table",
+        title: "Weekly revenue summary",
+        dataset: "weekly_detail",
         sourceId: "snapshot",
+        defaultSort: { field: "week", direction: "desc" },
         columns: [
-          { field: "reporting_week", label: "Reporting week" },
-          { field: "segment", label: "Customer segment" },
-          { field: "gross_revenue_m", label: "Gross revenue", format: "currency" },
-          { field: "year_over_year_growth_rate", label: "Year-over-year growth rate", format: "percent" },
-          { field: "estimated_pipeline_coverage_ratio", label: "Estimated pipeline coverage ratio" },
-          { field: "customer_activation_rate", label: "Customer activation rate", format: "percent" },
-          { field: "operating_margin_rate", label: "Operating margin rate", format: "percent" },
+          { field: "week", label: "Week starting", type: "date" },
+          { field: "net_revenue", label: "Net revenue", format: "currency" },
+          { field: "attainment", label: "Attainment", format: "percent" },
+          { field: "refund_rate", label: "Refund rate", format: "percent" },
+        ],
+      },
+      {
+        id: "revenue_detail_table",
+        title: "Weekly revenue detail",
+        dataset: "weekly_detail",
+        sourceId: "snapshot",
+        defaultSort: { field: "week", direction: "desc" },
+        columns: [
+          { field: "week", label: "Week starting", type: "date" },
+          { field: "gross_billings", label: "Gross billings", format: "currency" },
+          { field: "discounts", label: "Discounts", format: "currency" },
+          { field: "settled_refunds", label: "Settled refunds", format: "currency" },
+          { field: "net_revenue", label: "Net revenue", format: "currency" },
+          { field: "target", label: "Target", format: "currency" },
+          { field: "variance", label: "Variance", format: "currency", movement: true },
+          { field: "attainment", label: "Attainment", format: "percent" },
+          { field: "orders", label: "Orders", format: "number" },
+          { field: "revenue_per_order", label: "Revenue / order", format: "currency" },
+          { field: "refund_rate", label: "Refund rate", format: "percent" },
+          { field: "revenue_wow", label: "WoW growth", format: "percent", movement: true },
         ],
       },
     ],
-    sources: [{ id: "snapshot", label: "Fallback snapshot", path: "data/snapshot.json" }],
+    sources: [{ id: "snapshot", label: "Synthetic weekly revenue fixture", path: "data/weekly-revenue.json" }],
   },
   snapshot: {
     version: 1,
-    generatedAt: "2026-05-08T00:00:00Z",
+    generatedAt: "2026-07-08T00:00:00Z",
     status: "fixture",
     datasets: {
-      weekly_revenue: [
-        { week: "Apr 27", revenue_m: 12, wow: "+8% w/w" },
-        { week: "May 04", revenue_m: 18, wow: "+16% w/w" },
+      latest_week: [
+        {
+          attainment: 1.048,
+          net_revenue: 1048000,
+          orders: 5120,
+          orders_wow: 0.0396,
+          refund_rate: 0.032,
+          revenue_wow: 0.038,
+          variance: 48000,
+          week: "2026-06-29",
+        },
       ],
       weekly_revenue_trend: [
-        { week: "Apr 27", series: "Actual", revenue_m: 12 },
-        { week: "May 04", series: "Actual", revenue_m: 18 },
-        { week: "Apr 27", series: "Target", revenue_m: 14 },
-        { week: "May 04", series: "Target", revenue_m: 16 },
+        { week: "2026-04-13", series: "Actual", revenue: 790000 },
+        { week: "2026-04-20", series: "Actual", revenue: 820000 },
+        { week: "2026-04-27", series: "Actual", revenue: 845000 },
+        { week: "2026-05-04", series: "Actual", revenue: 862000 },
+        { week: "2026-05-11", series: "Actual", revenue: 890000 },
+        { week: "2026-05-18", series: "Actual", revenue: 905000 },
+        { week: "2026-05-25", series: "Actual", revenue: 918000 },
+        { week: "2026-06-01", series: "Actual", revenue: 940000 },
+        { week: "2026-06-08", series: "Actual", revenue: 955000 },
+        { week: "2026-06-15", series: "Actual", revenue: 972000 },
+        { week: "2026-06-22", series: "Actual", revenue: 1010000 },
+        { week: "2026-06-29", series: "Actual", revenue: 1048000 },
+        { week: "2026-04-13", series: "Target", revenue: 780000 },
+        { week: "2026-04-20", series: "Target", revenue: 800000 },
+        { week: "2026-04-27", series: "Target", revenue: 820000 },
+        { week: "2026-05-04", series: "Target", revenue: 840000 },
+        { week: "2026-05-11", series: "Target", revenue: 860000 },
+        { week: "2026-05-18", series: "Target", revenue: 880000 },
+        { week: "2026-05-25", series: "Target", revenue: 900000 },
+        { week: "2026-06-01", series: "Target", revenue: 920000 },
+        { week: "2026-06-08", series: "Target", revenue: 940000 },
+        { week: "2026-06-15", series: "Target", revenue: 960000 },
+        { week: "2026-06-22", series: "Target", revenue: 980000 },
+        { week: "2026-06-29", series: "Target", revenue: 1000000 },
       ],
-      revenue_segment_detail: [
-        { reporting_week: "2026-04-27", segment: "Enterprise", gross_revenue_m: 8.2, year_over_year_growth_rate: 0.31, estimated_pipeline_coverage_ratio: "4.3x", customer_activation_rate: 0.67, operating_margin_rate: 0.42 },
-        { reporting_week: "2026-05-04", segment: "Self-serve", gross_revenue_m: 9.8, year_over_year_growth_rate: 0.28, estimated_pipeline_coverage_ratio: "3.8x", customer_activation_rate: 0.61, operating_margin_rate: 0.39 },
+      weekly_detail: [
+        { week: "2026-06-29", gross_billings: 1112000, discounts: 29000, settled_refunds: 35000, net_revenue: 1048000, target: 1000000, variance: 48000, attainment: 1.048, orders: 5120, revenue_per_order: 204.69, refund_rate: 0.032, revenue_wow: 0.038 },
+        { week: "2026-06-22", gross_billings: 1068000, discounts: 28000, settled_refunds: 30000, net_revenue: 1010000, target: 980000, variance: 30000, attainment: 1.031, orders: 4925, revenue_per_order: 205.08, refund_rate: 0.029, revenue_wow: 0.039 },
+        { week: "2026-06-15", gross_billings: 1029000, discounts: 27000, settled_refunds: 30000, net_revenue: 972000, target: 960000, variance: 12000, attainment: 1.013, orders: 4740, revenue_per_order: 205.06, refund_rate: 0.03, revenue_wow: 0.018 },
+        { week: "2026-06-08", gross_billings: 1012000, discounts: 26000, settled_refunds: 31000, net_revenue: 955000, target: 940000, variance: 15000, attainment: 1.016, orders: 4660, revenue_per_order: 204.94, refund_rate: 0.031, revenue_wow: 0.016 },
+        { week: "2026-06-01", gross_billings: 995000, discounts: 26000, settled_refunds: 29000, net_revenue: 940000, target: 920000, variance: 20000, attainment: 1.022, orders: 4575, revenue_per_order: 205.46, refund_rate: 0.03, revenue_wow: 0.024 },
+        { week: "2026-05-25", gross_billings: 970000, discounts: 25000, settled_refunds: 27000, net_revenue: 918000, target: 900000, variance: 18000, attainment: 1.02, orders: 4460, revenue_per_order: 205.83, refund_rate: 0.029, revenue_wow: 0.014 },
+        { week: "2026-05-18", gross_billings: 958000, discounts: 24000, settled_refunds: 29000, net_revenue: 905000, target: 880000, variance: 25000, attainment: 1.028, orders: 4380, revenue_per_order: 206.62, refund_rate: 0.031, revenue_wow: 0.017 },
+        { week: "2026-05-11", gross_billings: 941000, discounts: 24000, settled_refunds: 27000, net_revenue: 890000, target: 860000, variance: 30000, attainment: 1.035, orders: 4315, revenue_per_order: 206.26, refund_rate: 0.029, revenue_wow: 0.032 },
+        { week: "2026-05-04", gross_billings: 909000, discounts: 23000, settled_refunds: 24000, net_revenue: 862000, target: 840000, variance: 22000, attainment: 1.026, orders: 4210, revenue_per_order: 204.75, refund_rate: 0.027, revenue_wow: 0.02 },
+        { week: "2026-04-27", gross_billings: 891000, discounts: 23000, settled_refunds: 23000, net_revenue: 845000, target: 820000, variance: 25000, attainment: 1.03, orders: 4140, revenue_per_order: 204.11, refund_rate: 0.026, revenue_wow: 0.03 },
+        { week: "2026-04-20", gross_billings: 867000, discounts: 22000, settled_refunds: 25000, net_revenue: 820000, target: 800000, variance: 20000, attainment: 1.025, orders: 4050, revenue_per_order: 202.47, refund_rate: 0.03, revenue_wow: 0.038 },
+        { week: "2026-04-13", gross_billings: 836000, discounts: 21000, settled_refunds: 25000, net_revenue: 790000, target: 780000, variance: 10000, attainment: 1.013, orders: 3970, revenue_per_order: 198.99, refund_rate: 0.031, revenue_wow: null },
       ],
     },
   },
@@ -514,13 +636,29 @@ function validateArtifactPayload(payload) {
       issues.push(`${path}.columns must be a non-empty array.`);
       return;
     }
+    const columnFields = new Set();
     table.columns.forEach((column, columnIndex) => {
       if (!isPlainObject(column)) {
         issues.push(`${path}.columns[${columnIndex}] must be an object.`);
         return;
       }
       validateFieldReference(rows, column.field, `${path}.columns[${columnIndex}].field`, issues);
+      if (typeof column.field === "string" && column.field) {
+        columnFields.add(column.field);
+      }
     });
+    if (table.defaultSort != null) {
+      if (!isPlainObject(table.defaultSort)) {
+        issues.push(`${path}.defaultSort must be an object.`);
+      } else {
+        if (!columnFields.has(table.defaultSort.field)) {
+          issues.push(`${path}.defaultSort.field must reference a declared table column.`);
+        }
+        if (!["asc", "desc"].includes(table.defaultSort.direction)) {
+          issues.push(`${path}.defaultSort.direction must be asc or desc.`);
+        }
+      }
+    }
   });
 
   if (Array.isArray(blocks)) {

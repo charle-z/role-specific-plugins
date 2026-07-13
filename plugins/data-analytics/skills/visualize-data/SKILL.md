@@ -1,17 +1,25 @@
 ---
 name: visualize-data
-description: "Design, specify, implement, revise, and QA quantitative visuals and chart choices. Use when an analytical answer needs visual judgment; for example comparing values, showing how a total breaks apart, reading concentration in a ranking, or understanding movement over time. This may mean rendering a chart for a report or dashboard, or simply choosing, rendering and QAing the right chart form for an inline answer."
+description: "Design, build, revise, or QA quantitative charts and figures. Use when an analytical answer needs visual judgment, whether for an inline answer, report, dashboard, notebook, or artifact."
 ---
+
+## Related Skills
+
+Use $metric-diagnostics when the visual needs an explanation of a metric movement.
+
+Use $build-report when the visual is part of a durable analytical report.
 
 # Data Visualization
 
 Create quantitative visuals that are analytically sound, immediately readable, and polished enough to ship in a report, memo, slide, dashboard, notebook, widget, or HTML artifact. Treat charts as evidence for a takeaway. Redesign charts that are visually attractive but analytically weak, and revise charts that are technically correct but hard to interpret.
 
-## Skill Configuration
+## Runtime Delivery Routing
 
-### User Context
+If `surface = chatgpt_web` and `mode = work_mode` are both positively identified, do not render with Data Analytics MCP chart or table widgets, do not call `render_chart` or `render_table` for inline delivery, and do not select an MCP artifact as the visual surface. This branch applies only after another workflow has already selected inline delivery; it does not choose inline over a report, dashboard, HTML, notebook, or other surface. For an already-selected inline visual, prefer native Work Mode rendering and read [native-inline-visualizations.md](references/native-inline-visualizations.md) to choose and invoke `charts_widget_v2` or `app_block`. For one supported `bar`, `line`, `pie`, or `scatter` chart, treat `charts_widget_v2` as directly surfaced in this runtime and emit its live `genui` content reference before considering fallback; do not self-declare it unavailable or search for it. The complete outer shape is `genui{"charts_widget_v2":{"content":{...}}}`: replace `{...}` with the real chart spec and emit the reference without Markdown backticks. The inner chart spec alone is not a response; do not print bare JSON, plain HTML, or a code fence. Keep `app_block` conditional on the host surfacing it. If the Visualize plugin is installed, also consult and follow its current visualization guidance for native chart or app-block authoring, while keeping this skill's delivery gate and fallback order authoritative. If an emitted native visual is rejected or fails to render, use a reproducible static/Matplotlib chart that fits a non-MCP surface; use a compact table only if no visual renderer can be delivered. Use static or Matplotlib charting for this native-render failure fallback or when the user explicitly asks for Python, a static image/file, notebook-oriented output, or export. A successful Data Analytics MCP tool result is not delivery confirmation in web Work Mode, so do not say a visual was plotted or rendered above unless the selected native or non-MCP surface actually rendered. MCP servers and other callable tools remain valid data sources.
 
-Mandatory pre-answer gate: Invoke `data-analytics:user-context` in preflight mode by loading [data-analytics:user-context](../user-context/SKILL.md) and running its preflight script before answering, searching connectors, retrieving evidence, creating artifacts, or drafting output. Do not look for a callable MCP tool named `data-analytics:user-context`. Use the returned `data_analytics_preflight` envelope as the source of truth for saved context, source-category mapping, semantic-layer registry, onboarding/final-response obligations, and conditional guidance; use saved context and semantic layers as source-selection inputs, not as substitutes for workflow-time reads from connected or provided sources. Do not read or reinterpret raw plugin state files unless preflight fails, declares required content omitted, local shell access is unavailable, or the user explicitly asks for raw state inspection.
+Whenever the selected report or dashboard delivery surface is HTML, read [recharts-html.md](references/recharts-html.md) and use its packaged Recharts-in-HTML path with same-data static fallbacks. This includes Codex explicit HTML, ChatGPT web Work Mode, and HTML used for PDF, Google Docs, or Google Slides conversion.
+
+Outside positively identified web Work Mode, keep the existing surface selection rules unchanged.
 
 ## Chart Selection
 
@@ -39,18 +47,20 @@ Common surface forms should be named in the chart contract when the final surfac
    - analytical question and takeaway
    - canonical family and concrete variant
    - data sufficiency for the chosen visual: expected row count, temporal point count for trend views, scatter observation count and grain, requested date range and grain, and fallback if the first query is too sparse
-   - surface-native chart type or Seaborn template variant when a concrete renderer has been selected
+   - surface-native chart type, Recharts HTML chart type, or explicit static renderer when a concrete renderer has been selected
    - delivery-specific constraints only after the delivery surface is chosen; for MCP widgets or app artifacts, use the shared MCP specification
    - palette policy, approved palette roots, and non-color distinction plan
    - output footprint, final container, export paths or delivery target, and the final QA surface
 4. Select the delivery path that matches the final surface.
-   - Use MCP inline widgets or the Data Analytics MCP artifact app only when that surface has been selected and the user has not waived widget/app rendering. Before shaping MCP-specific artifacts, read `../../src/analytics-app-core.md`.
-   - Use the selected report, dashboard, BI, notebook, slide, or static HTML surface's native chart primitives when they can communicate the point.
-   - Read `references/seaborn-templates.md` during the current task before every static Python implementation, revision, review, QA pass, or HTML report visual. Adapt the closest template and export the format expected by the selected delivery surface. Portable static HTML reports use PNG chart images.
+   - In positively identified web Work Mode, only after the active workflow has already selected inline or chat-visible delivery, read `references/native-inline-visualizations.md` and prefer native Work Mode rendering; do not call `render_chart` or `render_table` for inline delivery. For one supported `bar`, `line`, `pie`, or `scatter` chart, emit the directly surfaced `charts_widget_v2` live content reference before fallback. Use a reproducible static/Matplotlib chart only after that emitted reference is rejected or fails to render, or when no suitable native renderer exists for the requested chart family; use a compact table only if no visual renderer can be delivered, and do not describe a Data Analytics MCP tool result as rendered above. Use static or Matplotlib charting for this native-render failure fallback or for an explicit Python, static image/file, notebook, or export request.
+   - Outside web Work Mode, default to Data Analytics MCP chart widgets for ad hoc, inline, chat-visible, or otherwise unspecified chart requests. Treat "make/show/render this chart" as an MCP widget request unless the user explicitly asks for Python, a static image/file, notebook code, HTML, BI/dashboard editing, slides/docs export, or no rendered artifact.
+   - Use the selected report, dashboard, BI, notebook, slide, or static HTML surface's native chart primitives only when the user explicitly selected that surface or the active report/dashboard workflow selected it before chart rendering.
+   - Whenever the selected report or dashboard surface is HTML, read `references/recharts-html.md` and use its packaged Recharts runtime plus same-data static fallback.
+   - Outside the web Work Mode native-render failure fallback, use static Python charting only when the user explicitly asks for Python, a standalone static image/file, or notebook-oriented output. Choose a reproducible local renderer, export the requested format, and inspect the output. Do not use that path as the default for HTML reports or dashboards.
 - Use governed BI or dashboard-native widgets when that surface owns rendering; this skill should supply the visual spec and QA bar.
 - Implement local HTML/CSS/SVG/canvas/JavaScript visuals only when the final surface truly requires local rendering, custom interaction, offline portability, or a larger artifact than a widget can carry.
 5. Build in this order: format, structure, color, then QA. Choose the family, variant, and delivery surface first; decide labels, annotations, benchmarks, and retained information second; choose palette policy and explicit colors last.
-6. Render or export the chart in its real context. Save the image format the selected delivery surface expects. For delivered portable static HTML artifacts, use PNG chart images.
+6. Render or export the chart in its real context. For HTML reports and dashboards, inspect both the live Recharts mount and its same-data static fallback. For explicit standalone static output, save and inspect the image format the user requested.
 7. Inspect the visual in the final report, slide, dashboard, notebook, widget, or HTML layout. Revise before delivery when the chart, labels, color system, or container fails final-context QA.
 8. For shipped reports or dashboards with multiple visuals, maintain a compact chart map in notes or source material. Name the section, analytical question, selected family and chart type, fields, supported takeaway, palette policy, and delivery artifact, image path, or provenance source.
 
@@ -96,19 +106,18 @@ Concrete forms such as `highlighted multi-series line`, `Likert`, `pie`, `Pareto
 
 ### Surface And Implementation
 
-- Do not treat "route through visualize-data" as "always write chart HTML." This skill may produce a visual spec and QA bar rather than local chart code.
-- Do not assume widgets or the MCP artifact app are required. If the user wants chat, notebook, HTML, BI, Streamlit, slides, static files, or no rendered artifact, keep this skill's output to chart selection, data planning, implementation guidance, and QA for that surface.
+- For data visualization requests outside web Work Mode where the user has not chosen a file, notebook, BI/dashboard, report, slide, docs, HTML, or no-render output surface, render with Data Analytics MCP chart widgets by default when the MCP widget tools are available. In web Work Mode, only after inline delivery has already been selected, read `references/native-inline-visualizations.md` and prefer native Work Mode rendering; for one supported `bar`, `line`, `pie`, or `scatter` chart, emit the directly surfaced `charts_widget_v2` live content reference before fallback. Use a reproducible static/Matplotlib chart before a compact table fallback only after that emitted reference is rejected or fails to render, or when no suitable native renderer exists for the requested chart family. Do not call `render_chart` or `render_table` for web Work Mode delivery, do not treat an `ok:true` Data Analytics MCP tool result as proof that the browser rendered the visual, and use static or Matplotlib charting only for that native-render failure fallback or when the user explicitly asks for Python, a static image/file, notebook-oriented output, or export. When the user explicitly chooses another surface, keep this skill's output to chart selection, data planning, implementation guidance, and QA for that surface.
 - When the selected delivery surface is an MCP Apps widget or Data Analytics MCP report/dashboard artifact, read `../../src/analytics-app-core.md` after selecting the chart family. Do not let an MCP-supported type list drive general chart selection for non-MCP surfaces.
+- When rendering an MCP inline chart from reviewed query results, call `render_chart` with source metadata, an exploration-ready table, chart encodings, and display settings. Do not create an intermediate Python chart image for the same result unless the user explicitly asked for Python/static output or the widget renderer is unavailable.
 - Any table that powers a chart must be richer than the minimum fields needed to draw that chart. Do not ship source-data tables containing only `x`, `y`, and optional series/color fields when the reviewed result can safely include contextual dimensions, numerator/denominator fields, date or cohort fields, ranks, benchmarks, comparison-period values, or adjacent measures. If privacy, query cost, source limits, or metric definitions prevent a richer table, state that limitation in the chart/report notes.
 - Before rendering or exporting, inspect the reviewed result table for information density. If the chart would render fewer than 8 temporal points, fewer than 4 meaningful categories, fewer than 8 scatter observations, or a nearly straight two/three-point path, make one targeted attempt to improve the supporting data by querying a finer grain, extending the time range, or adding a relevant breakdown that supports the same claim. If that is blocked by source limits, query cost, privacy, or metric definition, record the limitation and switch to a more honest form such as KPI cards, grouped bars for discrete periods, a table, or prose with exact values.
 - Include more than one meaningful quantitative field when the user may reasonably compare measures, swap axes, inspect target versus actual, or choose a relationship view. Do not fabricate auxiliary measures or ship raw detail rows merely to make extra chart types appear possible.
 - Shape chart-ready data for realistic alternatives, not arbitrary ones. A trend chart should usually retain its temporal field, value field, and meaningful segment/comparator fields; a category comparison should retain the category, value, useful grouping candidates, and rank/sort context; composition charts should retain the denominator or share context when available. A scatter chart should retain a stable point identity or label, numeric x and y measures, any denominator or sample-size fields, a useful volume/size candidate, and one or two interpretable grouping or filter fields. Do not promote a retained grouping candidate into a color/series encoding unless it adds information not already carried by the axis, facet, or table labels.
 - Treat custom local visual implementations as report-complete only after they match the selected delivery mode and pass final-context QA.
 - Use the selected surface's native chart block when one is available. Do not add an extra decorative outline shell around charts.
-- For HTML reports, keep portable static delivery on PNG chart images. For portable static HTML reports, static report-adjacent doc prep, or other static Python chart paths, use Seaborn templates and export PNG files; SVG may remain as supporting source material, and the HTML report should use PNG chart images.
-- If `references/seaborn-templates.md` cannot be read when needed, do not claim template compliance or delivery readiness for a static Python chart. Surface the blocker or label the result rough/exploratory.
-- When revising the template library itself or auditing multiple charts at once, fix shared helper stack, palette-root, and layout drift before chart-specific exceptions.
-- Assume local environments can be minimal or offline. When needed before importing Seaborn, establish a writable cache such as `MPLCONFIGDIR=/tmp/matplotlib`. Expect Python with Seaborn plus writable temp and output directories; do not assume network installs will succeed.
+- For every HTML report or dashboard, use `references/recharts-html.md`: embed the packaged Recharts runtime, keep static same-data fallbacks, and do not install dependencies or rely on remote scripts.
+- For explicit standalone static/Python output, use a reproducible local renderer and inspect the exported result. Do not let a static-image path replace the packaged Recharts HTML default.
+- Assume local environments can be minimal or offline. Do not assume network installs will succeed.
 
 ### Visual Design
 
@@ -125,6 +134,7 @@ Concrete forms such as `highlighted multi-series line`, `Likert`, `pie`, `Pareto
 - Generate explicit palette maps from declared colors. Do not let plotting library categorical defaults choose shipped chart colors.
 - For signed values, avoid green/red by default. Use dark versus open/light fills, direct signed labels, and clear zero-line context unless documented domain semantics require an exception.
 - For waterfall charts, use matched neutral start and end anchors plus exactly two non-neutral delta colors: one positive and one negative. Do not introduce extra hues or darker/lighter non-neutral keylines for individual drivers.
+- For waterfall, bridge, variance, and other delta-focused charts where the takeaway is movement against a large base, do not force the value axis to zero when zero would materially compress the intended movement. Use a focused value-axis domain around the cumulative path or delta range with padding; preserve honesty with exact start/end/change labels, visible units, and an explicit focused-scale cue in the subtitle, caption, or axis when needed. Keep zero in view when values cross zero or the question is absolute magnitude.
 - Keep one stroke-width system for marks, keylines, guides, and reference lines. Use dark-neutral styling for benchmark, calibration, or ideal lines.
 - Keep left and bottom axis anchors visible when labels depend on them. Remove ticks, guides, or connectors that do not improve the intended comparison.
 - Prefer direct labels when they reduce legend lookups; use a compact top legend when direct labels create clutter.
@@ -140,8 +150,9 @@ Concrete forms such as `highlighted multi-series line`, `Likert`, `pie`, `Pareto
 - Chart choice should follow `Chart Selection`.
 - Choose and honor an explicit delivery surface. Use MCP widgets only when that surface is available, safe, useful, and not contrary to the user's requested output mode.
 - Keep chart contracts, omitted-chart explanations, validator notes, and QA rationale out of visible executive report bodies unless the user asks for methodology or the detail changes the reader-facing takeaway.
-- Static plotting code should visibly adapt the relevant Seaborn template or a minimal skeleton. Generic ad hoc snippets are acceptable only for exploratory charts.
+- Explicit standalone static/Python plotting code should be reproducible and visibly adapted to the requested chart contract. Generic ad hoc snippets are acceptable only for exploratory charts.
 - The form must match the analytical comparison, and scales must stay honest and consistent across comparable charts.
+- Standard bar charts that compare absolute magnitude should start at zero. Delta-focused waterfalls, bridges, variance bars, and small-multiple movement charts may use non-zero or narrowed domains only when the zero baseline would materially hide the intended change and the chart carries exact labels plus a clear scale cue.
 - Data grain, filters, date range, denominator, and units must match the claim the chart supports.
 - Every shipped chart must have a visible title appropriate to its surface and a subtitle that carries needed units, time/cohort context, denominator, sample size, or volume.
 - Labels, ticks, titles, legends, callouts, benchmark labels, and annotations must not collide, clip, or detach from the evidence in the exported chart or final container.
