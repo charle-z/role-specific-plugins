@@ -366,6 +366,19 @@ test("JavaScript MCP server rejects artifact chart grouping fields absent from s
   );
 });
 
+test("JavaScript MCP server rejects artifact chart tooltip fields absent from sampled rows", () => {
+  const args = artifactPayload("report");
+  args.manifest.charts[0].encodings.tooltip = [
+    { field: "segment", type: "nominal" },
+    { field: "missing_tooltip", type: "quantitative" },
+  ];
+
+  assert.throws(
+    () => server.callTool("validate_artifact", args),
+    /manifest\.charts\[0\]\.encodings\.tooltip\[1\]\.field references "missing_tooltip", but no sampled row contains that field/,
+  );
+});
+
 test("JavaScript MCP artifact field references may appear in only one sampled row", () => {
   const args = artifactPayload("report");
   args.snapshot.datasets.weekly_revenue[0].optional_note = "present";

@@ -1173,6 +1173,10 @@ function chartEncodingFields(chart, role) {
   return Array.isArray(fields) ? fields.filter((field) => typeof field === "string" && field.trim()) : [];
 }
 
+function chartTooltipEncodings(chart) {
+  return Array.isArray(chart?.encodings?.tooltip) ? chart.encodings.tooltip : [];
+}
+
 function hasChartEncodingSpec(chart) {
   return Boolean(
     isPlainObject(chart.encodings) &&
@@ -1208,7 +1212,7 @@ function validateChartEncodingSpec(chart, fieldPath, { requireType = false } = {
   for (const role of ["color", "size", "facet", "label"]) {
     validateIdentifier(chartEncodingField(chart, role), `${fieldPath}.encodings.${role}.field`);
   }
-  asList(chartEncoding(chart, "tooltip")).forEach((tooltip, index) => {
+  chartTooltipEncodings(chart).forEach((tooltip, index) => {
     if (!isPlainObject(tooltip)) throw new Error(`${fieldPath}.encodings.tooltip[${index}] must be an object`);
     validateIdentifier(tooltip.field, `${fieldPath}.encodings.tooltip[${index}].field`);
   });
@@ -1700,6 +1704,10 @@ function validateArtifactFieldReferences(manifest, snapshot) {
       ...["color", "size", "facet", "label"].map((role) => [
         chartEncodingField(chart, role),
         `$.manifest.charts[${index}].encodings.${role}.field`,
+      ]),
+      ...chartTooltipEncodings(chart).map((tooltip, tooltipIndex) => [
+        isPlainObject(tooltip) ? tooltip.field : null,
+        `$.manifest.charts[${index}].encodings.tooltip[${tooltipIndex}].field`,
       ]),
     ];
     fields.forEach(([field, fieldPath]) => validateArtifactFieldReference(rows, field, fieldPath));
