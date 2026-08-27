@@ -1701,7 +1701,7 @@ function validateArtifactFieldReferences(manifest, snapshot) {
         field,
         `$.manifest.charts[${index}].encodings.y.fields[${fieldIndex}]`,
       ]),
-      ...["color", "size", "facet", "label"].map((role) => [
+      ...["color", "size", "facet", "label", "lineStyle"].map((role) => [
         chartEncodingField(chart, role),
         `$.manifest.charts[${index}].encodings.${role}.field`,
       ]),

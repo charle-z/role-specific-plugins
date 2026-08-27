@@ -366,6 +366,16 @@ test("JavaScript MCP server rejects artifact chart grouping fields absent from s
   );
 });
 
+test("JavaScript MCP server rejects artifact chart line style fields absent from sampled rows", () => {
+  const args = artifactPayload("report");
+  args.manifest.charts[0].encodings.lineStyle = { field: "missing_style", type: "nominal" };
+
+  assert.throws(
+    () => server.callTool("validate_artifact", args),
+    /manifest\.charts\[0\]\.encodings\.lineStyle\.field references "missing_style", but no sampled row contains that field/,
+  );
+});
+
 test("JavaScript MCP server rejects artifact chart tooltip fields absent from sampled rows", () => {
   const args = artifactPayload("report");
   args.manifest.charts[0].encodings.tooltip = [
